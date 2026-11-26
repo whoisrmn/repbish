@@ -561,3 +561,7 @@ h1,.section-head h2,.shop-head h1,.info-body h1{letter-spacing:-.025em}
 .collection .rail{padding-inline:max(var(--gutter), calc(var(--push) + 8px));scroll-padding-inline:max(var(--gutter), calc(var(--push) + 8px))}
 /* phones: pieces snap to the middle of the rack, so a tapped piece stays centred */
 @media(max-width:720px){.collection .garment{scroll-snap-align:center}}
+/* hit area = the hanger's own slot; the wide photo box spills over its neighbours and must not steal their taps */
+.collection .garment-photo{pointer-events:none}
+.collection .garment.selected .garment-photo{pointer-events:auto}
+@media(hover:hover){.collection .garment:hover .garment-photo{pointer-events:auto}}
