@@ -106,6 +106,24 @@ async function catalog(env, admin = false) {
   };
 }
 
+// Optional garment measurements in cm: { columns:["Цээж","Урт"], rows:[{ size:"M", values:[56, 72] }] }.
+// Empty cells are null. Stored as JSON text; "" means the product has no chart.
+function sizeChart(value) {
+  if (value == null || value === "") return "";
+  check(value && typeof value === "object" && Array.isArray(value.columns) && Array.isArray(value.rows), "Хэмжээний хүснэгт буруу байна.");
+  const columns = value.columns.map(column => textField(column, 24));
+  check(columns.length >= 1 && columns.length <= 6 && value.rows.length >= 1 && value.rows.length <= 30, "Хэмжээний хүснэгт буруу байна.");
+  const rows = value.rows.map(row => {
+    check(row && Array.isArray(row.values) && row.values.length === columns.length, "Хэмжээний хүснэгт буруу байна.");
+    return { size: textField(row.size, 35), values: row.values.map(cell => {
+      if (cell === null) return null;
+      check(Number.isFinite(cell) && cell > 0 && cell <= 400, "Хэмжээ 0–400 см хооронд байна.");
+      return Math.round(cell * 10) / 10;
+    }) };
+  });
+  check(rows.some(row => row.values.some(cell => cell !== null)), "Хэмжээний хүснэгтэд дор хаяж нэг тоо оруулна уу.");
+  return JSON.stringify({ columns, rows });
+}
 async function saveProduct(env, data) {
   const id = data.id ?? crypto.randomUUID();
   check(uuid.test(id) && categories.includes(data.category) && typeof data.active === "boolean");
@@ -113,6 +131,7 @@ async function saveProduct(env, data) {
   const description = textField(data.description ?? "", 2500, 0);
   const image = textField(data.image ?? "", 60, 0);
   const frontImage = textField(data.front_image ?? "", 60, 0);
+  const chart = sizeChart(data.size_chart), fitNote = textField(data.fit_note ?? "", 200, 0);
   check(!image || imageKey.test(image));
   check(!frontImage || imageKey.test(frontImage));
   check(!data.active || Boolean(image), "Бараа нийтлэхийн өмнө зураг оруулна уу.");
@@ -130,8 +149,8 @@ async function saveProduct(env, data) {
     variants.filter(item => item.active).length, "Ижил хэмжээ, өнгөтэй сонголт давхардсан байна.");
   check(!data.active || variants.some(item => item.active), "Дор хаяж нэг идэвхтэй сонголт нэмнэ үү.");
   try {
-    const writes = [statement(env, "INSERT INTO products(id,title,brand,description,category,image,front_image,active,position) VALUES(?,?,?,?,?,?,?,?,(SELECT COALESCE(MIN(position),0)-1 FROM products)) ON CONFLICT(id) DO UPDATE SET title=excluded.title, brand=excluded.brand, description=excluded.description, category=excluded.category, image=excluded.image, front_image=excluded.front_image, active=excluded.active",
-      id, title, brand, description, data.category, image, frontImage, Number(data.active))];
+    const writes = [statement(env, "INSERT INTO products(id,title,brand,description,category,image,front_image,active,size_chart,fit_note,position) VALUES(?,?,?,?,?,?,?,?,?,?,(SELECT COALESCE(MIN(position),0)-1 FROM products)) ON CONFLICT(id) DO UPDATE SET title=excluded.title, brand=excluded.brand, description=excluded.description, category=excluded.category, image=excluded.image, front_image=excluded.front_image, active=excluded.active, size_chart=excluded.size_chart, fit_note=excluded.fit_note",
+      id, title, brand, description, data.category, image, frontImage, Number(data.active), chart, fitNote)];
     for (const item of variants) {
       if (item.existing) {
         writes.push(statement(env, "UPDATE variants SET size=?,color=?,price=?,stock=?,active=?,version=version+1 WHERE id=? AND product_id=? AND version=?",

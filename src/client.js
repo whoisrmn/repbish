@@ -233,7 +233,8 @@ function details(product) {
   $("#product-content").innerHTML = '<div class="product-layout"><img alt="' + esc(product.title) + '" src="' +
     esc(media(product.front_image || product.image, product.demo)) + '"><div><p class="overline">' + esc(product.brand) +
     '</p><p>' + esc(product.description) + '</p><form id="product-options" class="form-grid"><label>Хэмжээ, өнгө<select name="variant"' +
-    (!purchasable && !product.demo ? " disabled" : "") + '>' + options + '</select></label><strong id="variant-price" class="detail-price"></strong>' +
+    (!purchasable && !product.demo ? " disabled" : "") + '>' + options + '</select></label>' +
+    (chartOf(product) ? '<button type="button" class="pp-guide" id="detail-guide" aria-haspopup="dialog">Хэмжээний заавар</button>' : '') + '<strong id="variant-price" class="detail-price"></strong>' +
     (product.demo ? '' : '<button class="primary" type="submit"' +
       (!purchasable ? ' disabled>Дууссан' : '>Сагсанд нэмэх') + '</button>') + '</form><a class="quiet-link detail-more" href="/products/' +
     encodeURIComponent(product.id) + '">Дэлгэрэнгүй үзэх →</a></div></div>';
@@ -245,6 +246,7 @@ function details(product) {
   };
   showPrice();
   select.addEventListener("change", showPrice);
+  $("#detail-guide")?.addEventListener("click", () => showSizeGuide(product, product.variants.find(variant => variant.id === select.value)?.size));
   form.addEventListener("submit", event => {
     event.preventDefault();
     const variant = product.variants.find(item => item.id === select.value);
@@ -258,6 +260,31 @@ function details(product) {
   });
   productDialog.showModal();
 }
+// ---------- size guide ----------
+const chartOf = product => { try { return product.size_chart ? JSON.parse(product.size_chart) : null; } catch { return null; } };
+const measureTips = {
+  "Цээж":"Сугын доор, нэг талаас нөгөө тал хүртэл хавтгайгаар.", "Урт":"Мөрний хамгийн дээд цэгээс доод захын ирмэг хүртэл.",
+  "Мөр":"Нэг мөрний оёдлоос нөгөө мөрний оёдол хүртэл.", "Ханцуй":"Мөрний оёдлоос ханцуйн үзүүр хүртэл.",
+  "Бүсэлхий":"Бүсний дээд ирмэгийг нэг талаас нөгөө тал хүртэл хавтгайгаар.", "Ташаа":"Өмдний хамгийн өргөн хэсгийг хавтгайгаар.",
+  "Гадна урт":"Бүсний дээд ирмэгээс шуумаг хүртэл гадна талаар.", "Дотор урт":"Алхамын оёдлоос шуумаг хүртэл дотор талаар.",
+  "Тойрог":"Малгайн дотор талын тойргийг бүтнээр."
+};
+function showSizeGuide(product, selected) {
+  const chart = chartOf(product);
+  if (!chart) return;
+  const tips = chart.columns.filter(column => measureTips[column]);
+  $("#size-content").innerHTML = '<p class="size-product">' + esc([product.brand, product.title].filter(Boolean).join(" · ")) + '</p>' +
+    (product.fit_note ? '<p class="size-fit">' + esc(product.fit_note) + '</p>' : '') +
+    '<div class="size-scroll"><table class="size-table"><caption class="sr-only">Хэмжээ, сантиметрээр</caption><thead><tr><th scope="col">Хэмжээ</th>' +
+    chart.columns.map(column => '<th scope="col">' + esc(column) + '</th>').join("") + '</tr></thead><tbody>' +
+    chart.rows.map(row => '<tr' + (row.size === selected ? ' class="selected" aria-current="true"' : '') + '><th scope="row">' + esc(row.size) + '</th>' +
+      row.values.map(cell => '<td>' + (cell ?? "—") + '</td>').join("") + '</tr>').join("") + '</tbody></table></div>' +
+    '<p class="size-unit">Бүх хэмжээ сантиметрээр, хувцсыг хавтгай тавьж хэмжсэн. Цээж, бүсэлхийн тойргийг мэдэхийн тулд 2-оор үржүүлнэ. 1–2 см зөрүү байж болно.</p>' +
+    (tips.length ? '<h3>Хэрхэн хэмжих вэ</h3><dl class="size-tips">' + tips.map(column => '<dt>' + esc(column) + '</dt><dd>' + measureTips[column] + '</dd>').join("") + '</dl>' : '') +
+    '<p class="size-help">Аль хэмжээ таарахыг мэдэхгүй байвал <a href="/info/contact">бидэнтэй холбогдоорой</a>.</p>';
+  $("#size-dialog").showModal();
+}
+
 // ---------- product page (/products/:id) ----------
 function addToCart(product, variant) {
   if (!variant?.stock || product.demo) return;
@@ -294,7 +321,8 @@ function showProductPage(id) {
     '<h1>' + esc(product.title) + '</h1><p class="pp-price" id="pp-price"></p>' +
     '<div class="pp-option"><p class="pp-label">Өнгө: <span id="pp-color-name"></span></p>' + (colors.length > 1 ? '<div class="pp-chips" id="pp-colors">' +
       colors.map(color => '<button type="button" data-color="' + esc(color) + '">' + esc(color) + '</button>').join("") + '</div>' : '') + '</div>' +
-    '<div class="pp-option"><p class="pp-label">Хэмжээ</p><div class="pp-chips" id="pp-sizes"></div></div><p id="pp-stock" class="pp-stock" aria-live="polite"></p>' +
+    '<div class="pp-option"><div class="pp-label-row"><p class="pp-label">Хэмжээ</p>' + (chartOf(product) ? '<button type="button" class="pp-guide" id="pp-guide" aria-haspopup="dialog">Хэмжээний заавар</button>' : '') +
+    '</div><div class="pp-chips" id="pp-sizes"></div></div><p id="pp-stock" class="pp-stock" aria-live="polite"></p>' +
     '<div class="pp-actions">' + (product.demo ? '' : '<button type="button" class="primary" id="pp-add">Сагсанд нэмэх</button>') +
     '<button type="button" class="secondary pp-share" id="pp-share">Холбоос хуваалцах</button></div>' +
     '<ul class="pp-notes"><li>Монгол даяар үнэгүй хүргэлт</li><li>Оригинал брэнд</li></ul>' +
@@ -328,6 +356,7 @@ function showProductPage(id) {
       for (const button of page.querySelectorAll("[data-shot]")) button.setAttribute("aria-pressed", String(button === target));
     }
     else if (target.id === "pp-add") addToCart(product, chosen);
+    else if (target.id === "pp-guide") showSizeGuide(product, chosen?.size);
     else if (target.id === "pp-share") {
       const link = location.origin + "/products/" + encodeURIComponent(product.id);
       try {

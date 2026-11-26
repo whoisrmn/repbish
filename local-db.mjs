@@ -13,6 +13,9 @@ export function localDb(file = ":memory:") {
   if (!sqlite.prepare("SELECT 1 FROM pragma_table_info('products') WHERE name='position'").get()) {
     sqlite.exec(readFileSync(new URL("./drizzle/0003_display_order.sql", import.meta.url), "utf8"));
   }
+  if (!sqlite.prepare("SELECT 1 FROM pragma_table_info('products') WHERE name='size_chart'").get()) {
+    sqlite.exec(readFileSync(new URL("./drizzle/0004_size_chart.sql", import.meta.url), "utf8"));
+  }
   const db = {
     prepare(sql) {
       return { bind(...values) {

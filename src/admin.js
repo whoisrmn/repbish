@@ -132,6 +132,28 @@ function bindImage(form, name, onSaved, check) {
     }
   });
 }
+// ---------- size chart editor ----------
+// suggested measurement columns per category (cm, measured flat); the owner can rename them
+const chartColumns = { tops:["Цээж","Урт","Мөр","Ханцуй"], outerwear:["Цээж","Урт","Мөр","Ханцуй"],
+  bottoms:["Бүсэлхий","Ташаа","Гадна урт","Дотор урт"], accessories:["Тойрог"] };
+const parseChart = text => { try { return text ? JSON.parse(text) : null; } catch { return null; } };
+function chartTable(chart) {
+  if (!chart) return '<p class="muted">Хүснэгт алга. Доорх товчоор хэмжээнүүдээс үүсгээрэй.</p>';
+  return '<div class="chart-scroll"><table class="chart-table"><thead><tr><th>Хэмжээ</th>' + chart.columns.map((column, index) =>
+    '<th><input data-col="' + index + '" value="' + esc(column) + '" maxlength="24" aria-label="Баганын нэр ' + (index + 1) + '"></th>').join("") +
+    '</tr></thead><tbody>' + chart.rows.map(row => '<tr data-size="' + esc(row.size) + '"><th>' + esc(row.size) + '</th>' + row.values.map((cell, index) =>
+      '<td><input type="number" min="0" max="400" step="0.5" data-cell="' + index + '" value="' + (cell ?? "") + '" aria-label="' +
+      esc(row.size + " " + chart.columns[index]) + '"></td>').join("") + '</tr>').join("") + '</tbody></table></div>';
+}
+// reads the table back; "" when it is missing or has no numbers
+function readChart() {
+  const table = document.querySelector(".chart-table");
+  if (!table) return "";
+  const columns = [...table.querySelectorAll("[data-col]")].map(input => input.value.trim() || "—");
+  const rows = [...table.querySelectorAll("tbody tr")].map(row => ({ size:row.dataset.size,
+    values:[...row.querySelectorAll("[data-cell]")].map(input => input.value === "" ? null : Number(input.value)) }));
+  return rows.some(row => row.values.some(cell => cell !== null)) ? { columns, rows } : "";
+}
 function editProduct(item = {}) {
   editingProduct = { ...item };
   const draft = editingProduct;
@@ -145,6 +167,12 @@ function editProduct(item = {}) {
     '<small>Тунгалаг дэвсгэртэй, өлгүүр нь бүтэн харагдах зураг тохиромжтой.</small>' +
     '<fieldset><legend>Хэмжээ, өнгө, үлдэгдэл</legend><div id="variant-list">' +
     (item.variants ?? [{}]).map(variantRow).join("") + '</div><button class="secondary" id="add-variant" type="button">Сонголт нэмэх</button></fieldset>' +
+    '<fieldset class="chart-editor"><legend>Хэмжээний заавар (заавал биш)</legend>' +
+    '<p class="muted">Хувцсыг хавтгай тавьж сантиметрээр хэмжинэ. Брэнд бүрийн хэмжээ өөр тул бараа бүрт тусад нь оруулбал худалдан авагч зөв хэмжээгээ сонгоход тусална.</p>' +
+    '<div id="chart-area">' + chartTable(parseChart(item.size_chart)) + '</div><div class="admin-toolbars">' +
+    '<button type="button" class="secondary" id="chart-build">Хэмжээнүүдээс хүснэгт үүсгэх</button>' +
+    '<button type="button" class="secondary" id="chart-clear">Хүснэгт арилгах</button></div>' +
+    '<label>Өмсгөлийн тайлбар<input name="fit_note" maxlength="200" placeholder="Жишээ: Томоос томдуу загвар. Загвар өмсөгч 180 см, M өмссөн." value="' + esc(item.fit_note) + '"></label></fieldset>' +
     '<label class="inline"><input name="active" type="checkbox"' + (item.active ? " checked" : "") + '>Дэлгүүрт харуулах</label><button class="primary" type="submit">Хадгалах</button>' +
     (item.id ? '<div class="admin-actions"><button type="button" class="secondary" id="duplicate-product">Хуулбар үүсгэх</button>' +
       '<button type="button" class="danger" id="delete-product">Устгах</button></div>' : "") + '</form>';
@@ -152,7 +180,7 @@ function editProduct(item = {}) {
   // a copy starts as a new draft with the same photos, details and sizes, and no stock
   $("#duplicate-product")?.addEventListener("click", () => {
     editProduct({ title:(item.title + " (хуулбар)").slice(0, 100), brand:item.brand, category:item.category, description:item.description,
-      image:item.image, front_image:item.front_image, active:false,
+      image:item.image, front_image:item.front_image, active:false, size_chart:item.size_chart, fit_note:item.fit_note,
       variants:item.variants.map(({ size, color, price }) => ({ size, color, price, stock:0 })) });
     message("Хуулбар нээгдлээ. Нэр, үлдэгдлээ засаад хадгална уу.");
   });
@@ -166,6 +194,19 @@ function editProduct(item = {}) {
       message("Бараа устгагдлаа.");
     } catch (error) { message(error.message, true); event.target.disabled = false; }
   });
+  // (re)builds the chart from the sizes entered above, keeping numbers already typed for sizes that remain
+  $("#chart-build").addEventListener("click", () => {
+    const current = readChart() || parseChart(item.size_chart);
+    const sizes = [...new Set([...form.querySelectorAll('.variant [name="size"]')].map(input => input.value.trim()).filter(Boolean))];
+    if (!sizes.length) { message("Эхлээд дээр хэмжээнүүдээ (S, M, L…) оруулна уу.", true); return; }
+    const table = document.querySelector(".chart-table");
+    const columns = table ? [...table.querySelectorAll("[data-col]")].map(input => input.value.trim() || "—") : chartColumns[form.elements.category.value];
+    const kept = new Map((current?.rows ?? []).map(row => [row.size, row.values]));
+    const chart = { columns, rows:sizes.map(size => ({ size, values:columns.map((_, index) => kept.get(size)?.[index] ?? null) })) };
+    $("#chart-area").innerHTML = chartTable(chart);
+    $("#chart-area").querySelector("[data-cell]")?.focus();
+  });
+  $("#chart-clear").addEventListener("click", () => { $("#chart-area").innerHTML = chartTable(null); });
   bindImage(form, "hanger", key => { draft.image = key; });
   bindImage(form, "front", key => { draft.front_image = key; });
   $("#add-variant").addEventListener("click", () => {
@@ -188,7 +229,7 @@ function editProduct(item = {}) {
       }));
       const result = await post("product", { id:draft.id, image:draft.image, front_image:draft.front_image,
         title:fields.title.value, brand:fields.brand.value, description:fields.description.value,
-        category:fields.category.value, active:fields.active.checked, variants });
+        category:fields.category.value, active:fields.active.checked, variants, size_chart:readChart(), fit_note:fields.fit_note.value });
       await refreshCatalog();
       if (editingProduct === draft) editProduct(catalog.products.find(product => product.id === result.id));
       message("Бүтээгдэхүүнийг хадгаллаа.");

@@ -203,3 +203,26 @@ test("a product that was ordered cannot be deleted", async t => {
   assert.equal(refused.status, 409);
   assert.equal((await (await call(env, "/api/catalog")).json()).products.length, 1);
 });
+
+test("products can carry a size chart and fit note", async () => {
+  const env = environment();
+  await setupOwner(env);
+  const product = await newProduct(env);
+  const base = { id:product.id, title:product.title, brand:product.brand, category:product.category, image:product.image, active:true,
+    variants:product.variants.map(({ id, version, size, color, price, stock }) => ({ id, version, size, color, price, stock, active:true })) };
+  const chart = { columns:["Цээж","Урт"], rows:[{ size:"M", values:[56.25, null] }] };
+  assert.equal((await post(env, "/api/admin/product", { ...base, size_chart:chart, fit_note:"Том загвар" }, owner)).status, 200);
+  const saved = (await (await call(env, "/api/catalog")).json()).products[0];
+  assert.deepEqual(JSON.parse(saved.size_chart), { columns:["Цээж","Урт"], rows:[{ size:"M", values:[56.3, null] }] });
+  assert.equal(saved.fit_note, "Том загвар");
+  for (const bad of [{ columns:["Цээж"], rows:[{ size:"M", values:[null] }] }, { columns:["Цээж"], rows:[{ size:"M", values:[999] }] },
+    { columns:["Цээж","Урт"], rows:[{ size:"M", values:[50] }] }, { columns:[], rows:[] }]) {
+    const fresh = (await (await call(env, "/api/admin/catalog", { headers:owner })).json()).products[0];
+    const variants = fresh.variants.map(({ id, version, size, color, price, stock }) => ({ id, version, size, color, price, stock, active:true }));
+    assert.equal((await post(env, "/api/admin/product", { ...base, variants, size_chart:bad }, owner)).status, 400, JSON.stringify(bad));
+  }
+  const fresh = (await (await call(env, "/api/admin/catalog", { headers:owner })).json()).products[0];
+  const variants = fresh.variants.map(({ id, version, size, color, price, stock }) => ({ id, version, size, color, price, stock, active:true }));
+  assert.equal((await post(env, "/api/admin/product", { ...base, variants, size_chart:"" }, owner)).status, 200);
+  assert.equal((await (await call(env, "/api/catalog")).json()).products[0].size_chart, "");
+});

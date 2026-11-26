@@ -358,3 +358,34 @@ textarea{resize:vertical;min-height:72px}
   .product-layout{grid-template-columns:1fr;gap:18px}.product-layout img{height:300px}
 }
 @media(prefers-reduced-motion:reduce){*,*::before,*::after{scroll-behavior:auto!important;transition:none!important;animation:none!important}}
+
+/* ---------- size guide ---------- */
+.pp-label-row{display:flex;justify-content:space-between;align-items:baseline;gap:12px}
+.pp-guide{border:0;background:none;padding:0;font-size:12px;text-decoration:underline;text-underline-offset:3px;color:var(--ink);justify-self:start}
+.pp-guide:hover{opacity:.6}
+#size-dialog{width:min(620px,calc(100% - 24px))}
+.size-content{padding:4px 20px 22px;display:grid;gap:14px;font-size:13px}
+.size-product{color:var(--muted);font-size:12px}
+.size-fit{font-size:14px;background:var(--soft);padding:10px 12px}
+.size-scroll{overflow-x:auto}
+.size-table{width:100%;border-collapse:collapse;font-variant-numeric:tabular-nums}
+.size-table th,.size-table td{padding:10px 12px;text-align:left;border-bottom:1px solid var(--line);white-space:nowrap}
+.size-table thead th{font-size:11px;letter-spacing:.08em;text-transform:uppercase;color:var(--muted);font-weight:500}
+.size-table tbody th{font-weight:600}
+.size-table tr.selected{background:var(--soft)}
+.size-table tr.selected th::after{content:" ←";font-weight:400;color:var(--muted)}
+.size-unit{font-size:12px;color:var(--muted)}
+.size-content h3{font-size:13px;font-weight:600;margin-top:4px}
+.size-tips{display:grid;grid-template-columns:max-content 1fr;gap:6px 16px;margin:0}
+.size-tips dt{font-weight:500}
+.size-tips dd{margin:0;color:#444}
+.size-help a{text-decoration:underline;text-underline-offset:3px}
+.product-layout .pp-guide{margin-top:-4px}
+/* admin chart editor */
+.chart-editor{display:grid;gap:10px}
+.chart-scroll{overflow-x:auto}
+.chart-table{border-collapse:collapse}
+.chart-table th,.chart-table td{padding:3px;text-align:left}
+.chart-table tbody th{font-size:13px;padding-right:10px}
+.chart-table input{width:84px;padding:6px}
+.chart-table thead input{font-weight:600;font-size:12px}
