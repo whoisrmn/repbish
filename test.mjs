@@ -226,3 +226,13 @@ test("products can carry a size chart and fit note", async () => {
   assert.equal((await post(env, "/api/admin/product", { ...base, variants, size_chart:"" }, owner)).status, 200);
   assert.equal((await (await call(env, "/api/catalog")).json()).products[0].size_chart, "");
 });
+
+test("shop page is served with its own title and listed in the sitemap", async () => {
+  const env = environment();
+  const page = await call(env, "/products");
+  assert.equal(page.status, 200);
+  const text = await page.text();
+  assert.match(text, /<title>Бүх бараа \| Repbish<\/title>/);
+  assert.match(text, /<link rel="canonical" href="https:\/\/repbish\.test\/products">/);
+  assert.match(await (await call(env, "/sitemap.xml")).text(), /<loc>https:\/\/repbish\.test\/products<\/loc>/);
+});

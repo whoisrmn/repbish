@@ -405,7 +405,7 @@ function robots(origin) {
 async function sitemap(env, origin) {
   const products = await rows(env, "SELECT p.id FROM products p WHERE p.active=1 AND EXISTS " +
     "(SELECT 1 FROM variants v WHERE v.product_id=p.id AND v.active=1) ORDER BY p.rowid DESC");
-  const urls = [origin + "/", ...Object.keys(infoTitles).map(slug => origin + "/info/" + slug), ...products.map(item => origin + "/products/" + item.id)];
+  const urls = [origin + "/", origin + "/products", ...Object.keys(infoTitles).map(slug => origin + "/info/" + slug), ...products.map(item => origin + "/products/" + item.id)];
   return '<?xml version="1.0" encoding="UTF-8"?>\n<urlset xmlns="http://www.sitemaps.org/schemas/sitemap/0.9">\n' +
     urls.map(url => "  <url><loc>" + escapeHtml(url) + "</loc></url>").join("\n") + "\n</urlset>\n";
 }
@@ -431,6 +431,10 @@ export default {
       if (method === "GET" && path === "/robots.txt") return response(robots(url.origin), "text/plain; charset=utf-8", 200, "public, max-age=3600");
       if (method === "GET" && path === "/sitemap.xml") return response(await sitemap(env, url.origin), "application/xml; charset=utf-8", 200, "public, max-age=3600");
       if (method === "GET" && route.length === 3 && route[1] === "info" && Object.hasOwn(infoTitles, route[2])) return infoPage(route[2], url.origin);
+      if (method === "GET" && path === "/products") {
+        return response(storePage({ title: "Бүх бараа", url: url.origin + "/products",
+          description: "Repbish-ийн бүх бараа: оригинал брэндийн хувцас, боломжийн үнээр. Монгол даяар үнэгүй хүргэлт." }), html, 200, "public, max-age=60");
+      }
       if (method === "GET" && route.length === 3 && route[1] === "products" && productPath.test(route[2])) {
         return await productPage(env, route[2], url.origin);
       }

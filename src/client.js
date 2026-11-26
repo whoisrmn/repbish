@@ -260,6 +260,55 @@ function details(product) {
   });
   productDialog.showModal();
 }
+// ---------- shop page (/products) ----------
+// Every product in a grid. Filter and sort live in the address (?category=tops&sort=price-asc) so the view can be shared.
+const sorts = { featured:"Санал болгох", "price-asc":"Үнэ: багаас их", "price-desc":"Үнэ: ихээс бага" };
+function shopCard(product) {
+  const stock = product.variants.reduce((sum, variant) => sum + variant.stock, 0);
+  const main = media(product.front_image || product.image, product.demo);
+  const other = product.front_image && product.image ? media(product.image, product.demo) : "";
+  return '<li><a class="shop-card" href="/products/' + encodeURIComponent(product.id) + '"><span class="shop-photo">' +
+    '<img alt="" loading="lazy" decoding="async" src="' + esc(main) + '">' +
+    (other ? '<img class="shop-alt" alt="" loading="lazy" decoding="async" src="' + esc(other) + '">' : '') +
+    (product.demo || stock ? '' : '<span class="shop-sold">Дууссан</span>') + '</span>' +
+    (product.brand ? '<span class="shop-brand">' + esc(product.brand) + '</span>' : '') +
+    '<span class="shop-name">' + esc(product.title) + '</span><span class="shop-price">' + money(priceOf(product)) + '</span></a></li>';
+}
+function showShopPage() {
+  const page = $("#shop-page");
+  $("#collection").hidden = true;
+  $("#looks").hidden = true;
+  page.hidden = false;
+  const params = new URLSearchParams(location.search);
+  const present = Object.entries(labels).filter(([key]) => key === "all" || products.some(product => product.category === key));
+  let category = present.some(([key]) => key === params.get("category")) ? params.get("category") : "all";
+  let sort = Object.hasOwn(sorts, params.get("sort")) ? params.get("sort") : "featured";
+  page.innerHTML = '<div class="shop-head"><h1 id="shop-title">Бүх бараа</h1><p id="shop-count" class="shop-count" aria-live="polite"></p></div>' +
+    '<div class="shop-controls"><div class="filters shop-filters" id="shop-filters" aria-label="Ангилал">' + present.map(([key, label]) =>
+      '<button type="button" data-category="' + key + '">' + label + '</button>').join("") + '</div>' +
+    '<label class="shop-sort">Эрэмбэ<select id="shop-sort">' + Object.entries(sorts).map(([key, label]) =>
+      '<option value="' + key + '">' + label + '</option>').join("") + '</select></label></div><ul class="shop-grid" id="shop-grid"></ul>';
+  const render = () => {
+    for (const button of page.querySelectorAll("[data-category]")) button.setAttribute("aria-pressed", String(button.dataset.category === category));
+    $("#shop-sort").value = sort;
+    const list = products.filter(product => category === "all" || product.category === category);
+    if (sort !== "featured") list.sort((left, right) => (priceOf(left) - priceOf(right)) * (sort === "price-asc" ? 1 : -1));
+    $("#shop-count").textContent = list.length + " бараа";
+    $("#shop-grid").innerHTML = list.length ? list.map(shopCard).join("") : '<li class="shop-empty">Энэ ангилалд одоогоор бараа алга.</li>';
+    const query = new URLSearchParams();
+    if (category !== "all") query.set("category", category);
+    if (sort !== "featured") query.set("sort", sort);
+    history.replaceState(null, "", "/products" + (query.size ? "?" + query : ""));
+    document.title = (category === "all" ? "Бүх бараа" : labels[category]) + " | Repbish";
+  };
+  page.querySelector("#shop-filters").addEventListener("click", event => {
+    const button = event.target.closest("[data-category]");
+    if (button) { category = button.dataset.category; render(); }
+  });
+  $("#shop-sort").addEventListener("change", event => { sort = event.target.value; render(); });
+  render();
+}
+
 // ---------- size guide ----------
 const chartOf = product => { try { return product.size_chart ? JSON.parse(product.size_chart) : null; } catch { return null; } };
 const measureTips = {
@@ -312,8 +361,8 @@ function showProductPage(id) {
     product.image && { src:media(product.image, product.demo), label:"Өлгүүр дээр" }].filter(Boolean);
   const colors = [...new Set(product.variants.map(variant => variant.color))];
   const inLooks = looks.map((look, index) => ({ look, index })).filter(({ look }) => look.pins.some(pin => pin.product === product.id));
-  page.innerHTML = '<nav class="pp-crumbs" aria-label="Зам"><a href="/">Дэлгүүр</a><span aria-hidden="true">/</span><a href="/#collection">' +
-    esc(labels[product.category] ?? "Цуглуулга") + '</a></nav><div class="pp-layout"><div class="pp-gallery"><div class="pp-main"><img id="pp-image" alt="' +
+  page.innerHTML = '<nav class="pp-crumbs" aria-label="Зам"><a href="/">Дэлгүүр</a><span aria-hidden="true">/</span><a href="/products?category=' + encodeURIComponent(product.category) + '">' +
+    esc(labels[product.category] ?? "Бүх бараа") + '</a></nav><div class="pp-layout"><div class="pp-gallery"><div class="pp-main"><img id="pp-image" alt="' +
     esc(product.title) + '" src="' + esc(shots[0]?.src ?? "") + '"></div>' +
     (shots.length > 1 ? '<div class="pp-thumbs">' + shots.map((shot, index) => '<button type="button" data-shot="' + index + '" aria-label="' + shot.label +
       '" aria-pressed="' + (index === 0) + '"><img alt="" src="' + esc(shot.src) + '"></button>').join("") + '</div>' : '') +
@@ -446,8 +495,8 @@ menuDialog.addEventListener("click", event => {
 });
 function showMenuCategories() {
   const present = Object.entries(labels).filter(([key]) => key !== "all" && products.some(product => product.category === key));
-  $("#menu-shop").innerHTML = '<li><a href="/#category-all">Бүх бараа</a></li>' +
-    present.map(([key, label]) => '<li><a href="/#category-' + key + '">' + label + '</a></li>').join("");
+  $("#menu-shop").innerHTML = '<li><a href="/products">Бүх бараа</a></li>' +
+    present.map(([key, label]) => '<li><a href="/products?category=' + key + '">' + label + '</a></li>').join("");
 }
 let dragged = false;
 for (const container of [rail, stage, panel]) {
@@ -643,6 +692,7 @@ async function initialize() {
     saveCart();
     showMenuCategories();
     if (!$("#info-page").hidden) return;
+    if (location.pathname === "/products") { showShopPage(); return; }
     const productRoute = location.pathname.match(/^\/products\/([a-z0-9-]{1,64})$/);
     if (productRoute) { showProductPage(productRoute[1]); return; }
     showRail();
