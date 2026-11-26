@@ -1,0 +1,6 @@
+dist/
+.env
+.dev.vars
+.wrangler/
+.local/
+*.sqlite*

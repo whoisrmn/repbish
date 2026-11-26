@@ -1,0 +1,65 @@
+<!doctype html>
+<html lang="mn">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width,initial-scale=1">
+<meta name="description" content="Repbish. Оригинал брэндийн хувцас, боломжийн үнээр. Монгол даяар үнэгүй хүргэлт.">
+<title>Repbish — оригинал брэндийн хувцас</title>
+<link rel="stylesheet" href="/style.css">
+<script src="/shop.js" defer></script>
+</head>
+<body>
+<header class="site-header">
+  <a class="wordmark" href="/">repbish<span>.</span></a>
+  <nav aria-label="Үндсэн цэс"><a href="/#collection">Цуглуулга</a><a href="/#looks">Try the Look</a></nav>
+  <button type="button" class="bag-button" id="bag-button" aria-haspopup="dialog">Сагс <span id="bag-count">0</span></button>
+</header>
+<main>
+  <section class="hero" id="collection" aria-labelledby="hero-title">
+    <div class="hero-copy"><div>
+      <p class="overline">Оригинал брэндүүд · Монгол</p>
+      <h1 id="hero-title">rep биш<span>.</span></h1>
+      <p class="promise">Өдөр тутмын стиль, боломжийн үнээр.</p>
+    </div><a class="quiet-link" href="#looks">Try the Look</a></div>
+    <div class="catalog-controls">
+      <div id="filters" class="filters" aria-label="Ангилал"></div>
+      <p id="catalog-note" role="status">Цуглуулгыг ачаалж байна…</p>
+    </div>
+    <div class="rack" aria-label="Хувцасны өлгүүр"><div id="rail" class="rail"></div></div>
+    <div class="rail-footer"><p>Бараан дээр дарж хэмжээ, үнийг үзээрэй.</p><strong>Монгол даяар үнэгүй хүргэлт</strong></div>
+  </section>
+  <section class="look-section" id="looks" aria-labelledby="look-heading">
+    <div class="section-head"><div><h2 id="look-heading">Try the Look<span>.</span></h2><p>Зураг дээрх цэгийг дарж, тухайн хувцсыг үзээрэй.</p></div>
+      <div class="look-navigation" id="look-navigation" hidden><button type="button" id="previous-look">Өмнөх</button><span id="look-count" aria-live="polite"></span><button type="button" id="next-look">Дараах</button></div></div>
+    <div id="look-content"></div>
+  </section>
+  <section id="order-status" class="order-status" hidden aria-labelledby="order-heading">
+    <h2 id="order-heading">Захиалгын төлөв</h2>
+    <div id="order-result" role="status"></div>
+    <div class="order-actions"><button class="primary" id="check-order" type="button">Төлөв шинэчлэх</button><a class="quiet-link" href="/">Дэлгүүр рүү буцах</a></div>
+  </section>
+</main>
+<footer class="site-footer"><a class="wordmark" href="/">repbish<span>.</span></a><p>₮ MNT · Монгол</p></footer>
+<dialog id="product-dialog" aria-labelledby="product-title">
+  <div class="dialog-head"><h2 id="product-title">Бараа</h2><form method="dialog"><button class="close" aria-label="Хаах" autofocus>×</button></form></div>
+  <div id="product-content" class="product-content"></div>
+</dialog>
+<dialog id="bag-dialog" class="drawer" aria-labelledby="bag-title">
+  <div class="dialog-head"><h2 id="bag-title">Таны сагс</h2><form method="dialog"><button class="close" aria-label="Хаах" autofocus>×</button></form></div>
+  <div id="bag-content" class="drawer-content"></div>
+</dialog>
+<dialog id="checkout-dialog" class="drawer" aria-labelledby="checkout-title">
+  <div class="dialog-head"><h2 id="checkout-title">Хүргэлт</h2><form method="dialog"><button class="close" aria-label="Хаах" autofocus>×</button></form></div>
+  <form id="checkout-form" class="drawer-content form-grid">
+    <label>Нэр<input name="buyer" minlength="2" maxlength="100" autocomplete="name" required></label>
+    <label>Утасны дугаар<input name="phone" type="tel" maxlength="18" inputmode="tel" autocomplete="tel" required></label>
+    <label>Хот, аймаг<select name="province" required></select></label>
+    <label>Хүргэлтийн хаяг<textarea name="address" minlength="6" maxlength="350" autocomplete="street-address" required></textarea></label>
+    <p>Монгол даяар хүргэлт үнэгүй. Төлбөр Wire-н хуудсаар хийгдэнэ.</p>
+    <p id="checkout-error" class="error" role="alert"></p>
+    <button type="submit" class="primary">Wire-ээр төлөх</button>
+  </form>
+</dialog>
+<p class="sr-only" id="announcement" role="status"></p>
+</body>
+</html>
