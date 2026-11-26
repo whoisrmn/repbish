@@ -516,8 +516,53 @@ async function orderStatus(id) {
   } catch (error) { area.textContent = error.message; }
   finally { button.disabled = false; }
 }
+// ---------- store information pages (/info/:slug) ----------
+// First drafts. Highlighted [brackets] are details only the store owner can confirm.
+const fill = text => '<mark class="fill">[' + text + ']</mark>';
+const infoPages = {
+  delivery:{ title:"Хүргэлт", body:
+    '<p class="info-lead">Монгол даяар хүргэлт <strong>үнэгүй</strong>.</p>' +
+    '<h2>Хэдэн өдөрт хүргэх вэ</h2><ul><li>Улаанбаатар: ' + fill("1–2") + ' ажлын өдөр</li><li>Орон нутаг: ' + fill("3–7") +
+    ' ажлын өдөр, ' + fill("унаа / шуудан") + '-аар</li></ul>' +
+    '<h2>Хэрхэн явагдах вэ</h2><ol><li>Төлбөр Wire-ээр баталгаажсаны дараа захиалга бэлтгэгдэнэ.</li>' +
+    '<li>Илгээхээс өмнө бид таны утсаар холбогдож хаягаа баталгаажуулна.</li>' +
+    '<li>Хүргэлтийн дугаар гарвал захиалгын хуудсанд харагдана.</li></ol>' +
+    '<h2>Асуулт байвал</h2><p><a href="/info/contact">Холбоо барих</a> хуудсанд байгаа утсаар захиалгын дугаараа хэлж холбогдоорой.</p>' },
+  returns:{ title:"Буцаалт, солилт", body:
+    '<p class="info-lead">Хэмжээ таараагүй эсвэл сэтгэлд нийцээгүй бол хүлээн авснаас хойш ' + fill("7") + ' хоногийн дотор буцааж эсвэл сольж болно.</p>' +
+    '<h2>Нөхцөл</h2><ul><li>Өмсөөгүй, угаагаагүй, шошго нь бүтэн байх</li><li>Анхны савлагаатай байх</li>' +
+    '<li>Буцаах боломжгүй: ' + fill("дотуур хувцас, хямдралтай бараа") + '</li></ul>' +
+    '<h2>Хэмжээ солих</h2><p>Өөр хэмжээ үлдэгдэлтэй бол ' + fill("үнэгүй") + ' сольж өгнө.</p>' +
+    '<h2>Мөнгө буцаалт</h2><p>Буцаасан барааг шалгасны дараа ' + fill("5") + ' ажлын өдрийн дотор төлсөн аргаар тань буцаана.</p>' +
+    '<h2>Яаж эхлэх вэ</h2><p><a href="/info/contact">Холбоо барих</a> хуудсаар холбогдож захиалгын дугаар, буцаах шалтгаанаа хэлээрэй.</p>' },
+  privacy:{ title:"Нууцлал", body:
+    '<p class="info-lead">Repbish таны мэдээллийг зөвхөн захиалгыг тань хүргэхэд ашиглана.</p>' +
+    '<h2>Бид юу цуглуулдаг вэ</h2><ul><li>Нэр, утасны дугаар, хүргэлтийн хаяг — захиалга хүргэх, тантай холбогдоход</li>' +
+    '<li>Захиалсан бараа, дүн, төлбөрийн төлөв</li></ul>' +
+    '<h2>Төлбөр</h2><p>Төлбөрийг Wire.mn-ийн хуудсаар хийнэ. Таны картын мэдээллийг Repbish хардаггүй, хадгалдаггүй.</p>' +
+    '<h2>Сагс</h2><p>Сагсанд хийсэн бараа зөвхөн таны хөтөч дээр хадгалагдана.</p>' +
+    '<h2>Хэнтэй хуваалцдаг вэ</h2><p>Таны мэдээллийг худалдахгүй. Хүргэлт хийх ' + fill("хүргэлтийн компани") + '-д зөвхөн нэр, утас, хаягийг өгнө.</p>' +
+    '<h2>Таны эрх</h2><p>Мэдээллээ харах, засах, устгуулахыг хүсвэл <a href="/info/contact">бидэнтэй холбогдоорой</a>.</p>' },
+  contact:{ title:"Холбоо барих", body:
+    '<p class="info-lead">Захиалга, хэмжээ, хүргэлтийн талаар асуух зүйл байвал бидэнтэй холбогдоорой.</p>' +
+    '<dl class="info-contacts"><dt>Утас</dt><dd>' + fill("9911-0000") + '</dd><dt>И-мэйл</dt><dd>' + fill("hello@repbish.com") + '</dd>' +
+    '<dt>Instagram</dt><dd>' + fill("@repbish") + '</dd><dt>Facebook</dt><dd>' + fill("Repbish") + '</dd>' +
+    '<dt>Цагийн хуваарь</dt><dd>' + fill("Даваа–Баасан 10:00–19:00") + '</dd><dt>Хаяг</dt><dd>' + fill("шоурум байгаа бол хаяг") + '</dd></dl>' }
+};
+function showInfoPage(slug) {
+  const info = infoPages[slug];
+  $("#collection").hidden = true;
+  $("#looks").hidden = true;
+  const page = $("#info-page");
+  page.hidden = false;
+  page.innerHTML = '<nav class="info-nav" aria-label="Дэлгүүрийн мэдээлэл">' + Object.entries(infoPages).map(([key, item]) =>
+    '<a href="/info/' + key + '"' + (key === slug ? ' aria-current="page"' : '') + '>' + item.title + '</a>').join("") +
+    '</nav><article class="info-body"><h1>' + info.title + '</h1>' + info.body + '</article>';
+}
 async function initialize() {
   saveCart();
+  const infoRoute = location.pathname.match(/^\/info\/([a-z]+)$/);
+  if (infoRoute && Object.hasOwn(infoPages, infoRoute[1])) showInfoPage(infoRoute[1]);
   const order = location.pathname.match(/^\/order\/([^/]+)$/);
   if (order) {
     $("#collection").hidden = true;
@@ -538,6 +583,7 @@ async function initialize() {
     const ids = new Set(data.products.flatMap(product => product.variants.map(variant => variant.id)));
     for (const id of cart.keys()) if (!ids.has(id)) cart.delete(id);
     saveCart();
+    if (!$("#info-page").hidden) return;
     const productRoute = location.pathname.match(/^\/products\/([a-z0-9-]{1,64})$/);
     if (productRoute) { showProductPage(productRoute[1]); return; }
     showRail();
@@ -551,6 +597,7 @@ async function initialize() {
       $("#looks").scrollIntoView();
     }
   } catch {
+    if (!$("#info-page").hidden) return;
     $("#catalog-note").textContent = "Цуглуулгыг ачаалж чадсангүй. Хуудсаа шинэчилнэ үү.";
     $("#looks").hidden = true;
   }

@@ -296,6 +296,8 @@ async function wireWebhook(request, env) {
 }
 const escapeHtml = value => String(value ?? "").replace(/[&<>"']/g, char => ({ "&":"&amp;", "<":"&lt;", ">":"&gt;", '"':"&quot;", "'":"&#39;" })[char]);
 const productPath = /^[a-z0-9-]{1,64}$/;
+// store information pages; their text lives in client.js
+const infoTitles = { delivery: "Хүргэлт", returns: "Буцаалт, солилт", privacy: "Нууцлал", contact: "Холбоо барих" };
 // Product pages are the storefront page with the product's own title, description and share-preview tags
 // filled in on the server, so link previews (Facebook, Messenger, Telegram) and search engines see them without JavaScript.
 async function productPage(env, id, origin) {
@@ -346,6 +348,10 @@ export default {
       const route = path.split("/");
       if (method === "GET" && (path === "/" || (route.length === 3 && route[1] === "order" && uuid.test(route[2])))) {
         return response(assets.shopHtml, "text/html; charset=utf-8");
+      }
+      if (method === "GET" && route.length === 3 && route[1] === "info" && Object.hasOwn(infoTitles, route[2])) {
+        return response(assets.shopHtml.replace(/<title>[^<]*<\/title>/, "<title>" + infoTitles[route[2]] + " | Repbish</title>"),
+          "text/html; charset=utf-8", 200, "public, max-age=300");
       }
       if (method === "GET" && route.length === 3 && route[1] === "products" && productPath.test(route[2])) {
         return await productPage(env, route[2], url.origin);

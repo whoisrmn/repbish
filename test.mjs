@@ -137,3 +137,13 @@ test("product pages carry their own title and share-preview tags, and hide draft
   assert.equal(draft.status, 404);
   assert.match(await draft.text(), /<meta name="robots" content="noindex">/);
 });
+
+test("store information pages are served with their own titles", async () => {
+  const env = environment();
+  for (const [slug, title] of [["delivery","Хүргэлт"],["returns","Буцаалт, солилт"],["privacy","Нууцлал"],["contact","Холбоо барих"]]) {
+    const page = await call(env, "/info/" + slug);
+    assert.equal(page.status, 200);
+    assert.match(await page.text(), new RegExp("<title>" + title + " \| Repbish</title>"));
+  }
+  assert.equal((await call(env, "/info/unknown")).status, 404);
+});
