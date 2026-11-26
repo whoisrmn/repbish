@@ -108,7 +108,49 @@ function showRail() {
   const hanging = products.every(product => product.demo) ? [...products, ...products, ...products] : products;
   rail.innerHTML = hanging.map((product, index) => garment(product, index)).join("");
   bindFronts(rail);
+  hangAll(rail);
 }
+// ---------- hanging photos on the rod ----------
+// Product photos often have empty space above the hook, which would leave the garment floating under the rod.
+// We find the first row of the photo that has something in it (the hook) and lift the image so that row meets the rod.
+const hookTops = new Map();
+function hookTop(img) {
+  if (hookTops.has(img.src)) return hookTops.get(img.src);
+  let top = 0;
+  try {
+    const width = 120, height = Math.max(1, Math.round(120 * img.naturalHeight / img.naturalWidth));
+    const canvas = document.createElement("canvas");
+    canvas.width = width; canvas.height = height;
+    const context = canvas.getContext("2d", { willReadFrequently:true });
+    context.drawImage(img, 0, 0, width, height);
+    const { data } = context.getImageData(0, 0, width, height);
+    // only the middle of the photo, where the hook is, so edge noise doesn't count
+    find: for (let y = 0; y < height * .5; y++) {
+      for (let x = Math.round(width * .2); x < width * .8; x++) {
+        const i = (y * width + x) * 4;
+        if (data[i + 3] > 40 && Math.min(data[i], data[i + 1], data[i + 2]) < 215) { top = y / height; break find; }
+      }
+    }
+  } catch { /* unreadable image: leave it where it is */ }
+  hookTops.set(img.src, top);
+  return top;
+}
+const rodGrip = 6; // px of the photo box above the rod's centre: the hook curls over the rod here
+function hang(img) {
+  if (!img.naturalWidth || !img.clientHeight) return;
+  const scale = Math.min(img.clientWidth / img.naturalWidth, img.clientHeight / img.naturalHeight);
+  img.style.setProperty("--lift", Math.max(0, hookTop(img) * img.naturalHeight * scale - rodGrip) + "px");
+}
+function hangAll(container) {
+  for (const img of container.querySelectorAll(".garment-photo img")) {
+    if (img.complete) hang(img);
+    else img.addEventListener("load", () => hang(img), { once:true });
+  }
+}
+// photo boxes change size with the window, so re-hang after resizes
+let hangTimer;
+new ResizeObserver(() => { clearTimeout(hangTimer); hangTimer = setTimeout(() => hangAll(rail), 120); }).observe(rail);
+
 // loads the optional front-facing photo the first time a hanger is hovered or focused
 function bindFronts(container) {
   for (const card of container.children) {
@@ -121,7 +163,7 @@ function bindFronts(container) {
       img.className = "garment-front";
       img.alt = "";
       img.decoding = "async";
-      img.addEventListener("load", () => photo.classList.add("front-ready"), { once:true });
+      img.addEventListener("load", () => { hang(img); photo.classList.add("front-ready"); }, { once:true });
       img.src = media(product.front_image);
       photo.prepend(img);
     };

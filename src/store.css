@@ -84,11 +84,9 @@ h1,h2,h3{font-weight:500;letter-spacing:-.01em}
 .filters button[aria-pressed="true"]{color:var(--ink);border-bottom-color:var(--ink)}
 
 .rack{isolation:isolate;position:relative}
-/* the rod: a thin brushed-steel tube across the full width, with wall brackets at both ends */
+/* the rod: a thin brushed-steel tube across the full width */
 .rack::before{content:"";position:absolute;left:0;right:0;top:20px;height:5px;z-index:-1;border-radius:3px;
   background:linear-gradient(#8d8d8d,#f2f2f2 35%,#c4c4c4 60%,#7a7a7a);box-shadow:0 2px 3px rgb(0 0 0/.12)}
-.rack::after{content:"";position:absolute;left:0;right:0;top:12px;height:21px;z-index:-1;pointer-events:none;
-  background:linear-gradient(90deg,#b9b9b9 0 14px,transparent 14px calc(100% - 14px),#b9b9b9 calc(100% - 14px));border-radius:2px}
 .rail{display:grid;grid-auto-flow:column;grid-auto-columns:minmax(150px,calc((100% - var(--rail-gap,36px))/var(--rail-columns,4)));gap:8px;
   overflow-x:auto;overflow-y:hidden;scroll-snap-type:x proximity;scroll-padding-inline:var(--gutter);padding:13px var(--gutter) 6px;scrollbar-width:none}
 .rail::-webkit-scrollbar{display:none}
@@ -505,3 +503,5 @@ dialog::backdrop{background:rgb(20 20 20/.28);backdrop-filter:blur(2px)}
 .bag-button{display:inline-flex;align-items:center}
 /* Inter is a touch wider than Helvetica: tighten large headings slightly */
 h1,.section-head h2,.shop-head h1,.info-body h1{letter-spacing:-.025em}
+/* lift each rack photo so its hook sits on the rod (amount measured per photo in client.js) */
+.collection .garment-photo img{translate:0 calc(var(--lift, 0px) * -1)}
