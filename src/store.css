@@ -68,10 +68,17 @@ h1,h2,h3{font-weight:500;letter-spacing:-.01em}
 .collection .garment{flex:0 0 var(--side);padding:0 0 8px;position:relative;transition:translate .7s cubic-bezier(.22,.61,.36,1)}
 .collection .garment-photo{flex:none;width:var(--open);height:calc(var(--open) / .72)}
 .collection .garment.turn .garment-regular{transform:perspective(900px) rotateY(68deg);transition:transform .8s cubic-bezier(.22,.61,.36,1),opacity .5s}
-.collection .garment:hover,.collection .garment:focus-visible{z-index:3}
-.collection .garment.turn:is(:hover,:focus-visible) .garment-regular{transform:perspective(900px) rotateY(0)}
-.collection .garment:is(:hover,:focus-visible) ~ .garment{translate:var(--push) 0}
-.collection .garment:has(~ .garment:is(:hover,:focus-visible)){translate:calc(var(--push) * -1) 0}
+/* keyboard focus works everywhere; hover only on devices that really hover (iPhone keeps :hover stuck after a tap) */
+.collection .garment:focus-visible{z-index:3}
+.collection .garment.turn:focus-visible .garment-regular{transform:perspective(900px) rotateY(0)}
+.collection .garment:focus-visible ~ .garment{translate:var(--push) 0}
+.collection .garment:has(~ .garment:focus-visible){translate:calc(var(--push) * -1) 0}
+@media(hover:hover){
+  .collection .garment:hover{z-index:3}
+  .collection .garment.turn:hover .garment-regular{transform:perspective(900px) rotateY(0)}
+  .collection .garment:hover ~ .garment{translate:var(--push) 0}
+  .collection .garment:has(~ .garment:hover){translate:calc(var(--push) * -1) 0}
+}
 .railcap{display:flex;align-items:center;justify-content:center;gap:14px;font-size:11px;font-weight:600;letter-spacing:.18em;text-transform:uppercase;line-height:1;margin-bottom:clamp(20px,3vw,32px)}
 .railcap-sep{width:1px;height:12px;background:currentColor;opacity:.25}
 .railcap-dim{color:var(--muted)}
@@ -550,3 +557,5 @@ h1,.section-head h2,.shop-head h1,.info-body h1{letter-spacing:-.025em}
 .collection .garment.selected .garment-cta{display:grid;justify-items:center;gap:2px;margin-top:12px;white-space:nowrap;font-size:10px;letter-spacing:.14em;text-transform:uppercase;color:#6b6b6b;animation:rise .5s var(--ease) both}
 .garment-cta span{font-size:12px;letter-spacing:.02em;text-transform:none;color:var(--ink)}
 @media(prefers-reduced-motion:reduce){.collection .rail .garment.selected ~ .garment,.collection .garment:has(~ .garment.selected){translate:none}}
+/* each photo box is wider than its slot on the rod: pad the rack so the first and last photos never get clipped at its edges */
+.collection .rail{padding-inline:max(var(--gutter), calc(var(--push) + 8px));scroll-padding-inline:max(var(--gutter), calc(var(--push) + 8px))}
