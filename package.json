@@ -5,7 +5,8 @@
   "scripts": {
     "build": "node build.mjs",
     "test": "node --test test.mjs",
-    "dev": "node dev.mjs"
+    "dev": "node dev.mjs",
+    "start": "node serve.mjs"
   },
   "engines": { "node": ">=24" }
 }

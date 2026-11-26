@@ -12,7 +12,7 @@ const run = (env, sql, ...values) => statement(env, sql, ...values).run();
 const securityHeaders = {
   "X-Content-Type-Options": "nosniff", "Referrer-Policy": "no-referrer",
   "X-Frame-Options": "DENY",
-  "Content-Security-Policy": "default-src 'none'; script-src 'self'; style-src 'self' 'unsafe-inline'; img-src 'self' data: blob:; font-src 'self'; connect-src 'self'; form-action 'self'; frame-ancestors 'none'; base-uri 'none'"
+  "Content-Security-Policy": "default-src 'none'; script-src 'self'; style-src 'self' 'unsafe-inline'; img-src 'self' data: blob:; font-src 'self'; connect-src 'self'; form-action 'self'; frame-ancestors 'none'; base-uri 'self'"
 };
 function response(body, type, status = 200, cache = "no-store") {
   return new Response(body, { status, headers: { ...securityHeaders, "Content-Type": type, "Cache-Control": cache } });
@@ -344,6 +344,10 @@ const productPath = /^[a-z0-9-]{1,64}$/;
 const infoTitles = { delivery: "Хүргэлт", returns: "Буцаалт, солилт", privacy: "Нууцлал", contact: "Холбоо барих" };
 const siteDescription = "Оригинал брэндийн хувцас, боломжийн үнээр. Монгол даяар үнэгүй хүргэлт.";
 const html = "text/html; charset=utf-8";
+// Optional sub-path the store is served under (BASE_PATH, e.g. "/repbish"); "" at the domain root.
+// Pages get <base href> so their relative links resolve under it, and absolute URLs include it.
+let basePath = "";
+const withBase = page => page.replace('<meta charset="utf-8">', '<meta charset="utf-8">\n<base href="' + escapeHtml(basePath + "/") + '">');
 
 // Every storefront URL serves the same page; the server fills in that URL's title, description and
 // share-preview tags so link previews (Facebook, Messenger, Telegram) and search engines see them without JavaScript.
@@ -361,7 +365,7 @@ function storePage({ title, description = siteDescription, url, image, type = "w
     '<meta name="twitter:card" content="' + (image ? "summary_large_image" : "summary") + '">',
     ...extra
   ].filter(Boolean).join("\n");
-  return assets.shopHtml
+  return withBase(assets.shopHtml)
     .replace(/<title>[^<]*<\/title>/, "<title>" + escapeHtml(title === "Repbish" ? "Repbish — оригинал брэндийн хувцас" : title + " | Repbish") + "</title>")
     .replace(/<meta name="description" content="[^"]*">/, '<meta name="description" content="' + escapeHtml(description) + '">')
     .replace("</head>", tags + "\n</head>");
@@ -420,10 +424,12 @@ export default {
   async fetch(request, env, ctx) {
     try {
       const url = new URL(request.url);
+      basePath = String(env.BASE_PATH ?? "").replace(/\/+$/, "");
+      const site = url.origin + basePath;
       const path = url.pathname;
       const method = request.method;
       const route = path.split("/");
-      if (method === "GET" && path === "/") return await homePage(env, url.origin);
+      if (method === "GET" && path === "/") return await homePage(env, site);
       if (method === "GET" && route.length === 3 && route[1] === "order" && uuid.test(route[2])) {
         return response(storePage({ title: "Захиалгын төлөв", robots: "noindex" }), html);
       }
@@ -431,15 +437,15 @@ export default {
         return response(Uint8Array.from(atob(assets.fonts[route[2].slice(0, -6)]), char => char.charCodeAt(0)), "font/woff2", 200, "public, max-age=31536000, immutable");
       }
       if (method === "GET" && path === "/favicon.svg") return response(favicon, "image/svg+xml", 200, "public, max-age=86400");
-      if (method === "GET" && path === "/robots.txt") return response(robots(url.origin), "text/plain; charset=utf-8", 200, "public, max-age=3600");
-      if (method === "GET" && path === "/sitemap.xml") return response(await sitemap(env, url.origin), "application/xml; charset=utf-8", 200, "public, max-age=3600");
-      if (method === "GET" && route.length === 3 && route[1] === "info" && Object.hasOwn(infoTitles, route[2])) return infoPage(route[2], url.origin);
+      if (method === "GET" && path === "/robots.txt") return response(robots(site), "text/plain; charset=utf-8", 200, "public, max-age=3600");
+      if (method === "GET" && path === "/sitemap.xml") return response(await sitemap(env, site), "application/xml; charset=utf-8", 200, "public, max-age=3600");
+      if (method === "GET" && route.length === 3 && route[1] === "info" && Object.hasOwn(infoTitles, route[2])) return infoPage(route[2], site);
       if (method === "GET" && path === "/products") {
-        return response(storePage({ title: "Бүх бараа", url: url.origin + "/products",
+        return response(storePage({ title: "Бүх бараа", url: site + "/products",
           description: "Repbish-ийн бүх бараа: оригинал брэндийн хувцас, боломжийн үнээр. Монгол даяар үнэгүй хүргэлт." }), html, 200, "public, max-age=60");
       }
       if (method === "GET" && route.length === 3 && route[1] === "products" && productPath.test(route[2])) {
-        return await productPage(env, route[2], url.origin);
+        return await productPage(env, route[2], site);
       }
       if (method === "GET" && path === "/style.css") return response(assets.storeCss, "text/css; charset=utf-8");
       if (method === "GET" && path === "/shop.js") return response(assets.clientJs, "text/javascript; charset=utf-8");
@@ -450,7 +456,7 @@ export default {
       if (method === "GET" && path === "/admin") {
         if (!request.headers.get("oai-authenticated-user-id")) return Response.redirect(url.origin + "/signin-with-chatgpt?return_to=%2Fadmin", 302);
         check(await adminAllowed(request, env, true), "Админ хандах эрхгүй байна.", 403);
-        return response(assets.adminHtml, "text/html; charset=utf-8");
+        return response(withBase(assets.adminHtml), "text/html; charset=utf-8");
       }
       if (method === "GET" && route.length === 3 && route[1] === "media" && imageKey.test(route[2])) {
         const image = await env.BUCKET.get(route[2]);
@@ -461,7 +467,7 @@ export default {
       if (method === "POST" && path === "/api/checkout") {
         clientOrigin(request, url);
         if (checkoutReady(env)) ctx?.waitUntil(reconcileExpired(env));
-        return json(await startCheckout(env, await requestJson(request), url.origin, request.headers.get("CF-Connecting-IP")));
+        return json(await startCheckout(env, await requestJson(request), site, request.headers.get("CF-Connecting-IP")));
       }
       if (method === "POST" && path === "/webhooks/wire") return await wireWebhook(request, env);
       if (method === "GET" && route.length === 4 && route[2] === "orders" && route[1] === "api" && uuid.test(route[3])) {

@@ -248,3 +248,12 @@ test("self-hosted Inter font files are served and allowed by the page policy", a
   assert.equal((await call(env, "/fonts/unknown.woff2")).status, 404);
   assert.match((await call(env, "/")).headers.get("content-security-policy"), /font-src 'self'/);
 });
+
+test("a sub-path deployment gets a base tag and sub-path absolute URLs", async () => {
+  const env = { ...environment(), BASE_PATH:"/repbish" };
+  const home = await (await call(env, "/")).text();
+  assert.match(home, /<base href="\/repbish\/">/);
+  assert.match(home, /<link rel="canonical" href="https:\/\/repbish\.test\/repbish\/">/);
+  assert.match(await (await call(env, "/sitemap.xml")).text(), /<loc>https:\/\/repbish\.test\/repbish\/products<\/loc>/);
+  assert.match(await (await call(environment(), "/")).text(), /<base href="\/">/, "root deployment keeps base /");
+});

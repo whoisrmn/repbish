@@ -39,3 +39,17 @@ Configure the following in the hosting service’s private runtime environment:
 Register `https://YOUR-STORE/webhooks/wire` in the Wire project, subscribe to `payment_intent.succeeded` and `payment_intent.canceled`, and verify the endpoint in Wire. The success or cancel redirect only opens the order-status page. The backend confirms Wire’s payment status and amount independently.
 
 Checkout accepts a Mongolian phone number and a local province or Ulaanbaatar address. Delivery is free nationwide. The tests use stubbed Wire responses and signed fixtures. Live payment and production DNS must be verified with the actual merchant account and domain before launch.
+
+## Self-hosting on a VPS (Node + Nginx)
+
+`serve.mjs` runs the same built worker on a plain Node server (Node 22.13+ for `node:sqlite`) with SQLite and images on disk, bound to `127.0.0.1`. It is used for the sub-path deployment at `https://larp1t.space/repbish`.
+
+```sh
+npm run build
+PORT=4320 PUBLIC_ORIGIN=https://larp1t.space BASE_PATH=/repbish DATA_DIR=./data ADMIN_PASSWORD=... npm start
+```
+
+- `BASE_PATH` makes every page carry `<base href="/repbish/">`; all storefront links are relative, so the same build also works at a domain root (`BASE_PATH` empty).
+- Nginx proxies `location /repbish/ { proxy_pass http://127.0.0.1:4320/; }` (the trailing slash strips the prefix). Allow uploads with `client_max_body_size 5m`.
+- `/admin` asks for HTTP Basic auth: user `admin`, password `ADMIN_PASSWORD`. Visitor-supplied `oai-*` identity headers are always dropped. Without `ADMIN_PASSWORD` the admin is off.
+- Checkout stays off until `CHECKOUT_ENABLED=true`, `WIRE_API_KEY` and `WIRE_WEBHOOK_SECRET` are set.

@@ -1,7 +1,12 @@
 const $ = selector => document.querySelector(selector);
 const money = amount => new Intl.NumberFormat("mn-MN").format(amount) + " ₮";
 const esc = value => String(value ?? "").replace(/[&<>"']/g, char => ({ "&":"&amp;", "<":"&lt;", ">":"&gt;", '"':"&quot;", "'":"&#39;" })[char]);
-const media = (image, demo) => (demo ? "/demo/" : "/media/") + encodeURIComponent(image);
+const media = (image, demo) => (demo ? "demo/" : "media/") + encodeURIComponent(image);
+// The store can live under a sub-path (e.g. /repbish): the server sets <base href>, links are relative,
+// and routes are read from the address with that prefix removed.
+const BASE = new URL(document.baseURI).pathname.replace(/\/$/, "");
+const route = () => (location.pathname.startsWith(BASE) ? location.pathname.slice(BASE.length) : location.pathname) || "/";
+const absolute = path => new URL(path, document.baseURI).href;
 const labels = { all:"Бүгд", tops:"Дээгүүр", bottoms:"Өмд", outerwear:"Гадуур хувцас", accessories:"Аксессуар" };
 const productDialog = $("#product-dialog");
 const bagDialog = $("#bag-dialog");
@@ -278,7 +283,7 @@ function details(product) {
     (!purchasable && !product.demo ? " disabled" : "") + '>' + options + '</select></label>' +
     (chartOf(product) ? '<button type="button" class="pp-guide" id="detail-guide" aria-haspopup="dialog">Хэмжээний заавар</button>' : '') + '<strong id="variant-price" class="detail-price"></strong>' +
     (product.demo ? '' : '<button class="primary" type="submit"' +
-      (!purchasable ? ' disabled>Дууссан' : '>Сагсанд нэмэх') + '</button>') + '</form><a class="quiet-link detail-more" href="/products/' +
+      (!purchasable ? ' disabled>Дууссан' : '>Сагсанд нэмэх') + '</button>') + '</form><a class="quiet-link detail-more" href="products/' +
     encodeURIComponent(product.id) + '">Дэлгэрэнгүй үзэх →</a></div></div>';
   const form = $("#product-options");
   const select = form.elements.variant;
@@ -309,7 +314,7 @@ function shopCard(product) {
   const stock = product.variants.reduce((sum, variant) => sum + variant.stock, 0);
   const main = media(product.front_image || product.image, product.demo);
   const other = product.front_image && product.image ? media(product.image, product.demo) : "";
-  return '<li><a class="shop-card" href="/products/' + encodeURIComponent(product.id) + '"><span class="shop-photo">' +
+  return '<li><a class="shop-card" href="products/' + encodeURIComponent(product.id) + '"><span class="shop-photo">' +
     '<img alt="" loading="lazy" decoding="async" src="' + esc(main) + '">' +
     (other ? '<img class="shop-alt" alt="" loading="lazy" decoding="async" src="' + esc(other) + '">' : '') +
     (product.demo || stock ? '' : '<span class="shop-sold">Дууссан</span>') + '</span>' +
@@ -340,7 +345,7 @@ function showShopPage() {
     const query = new URLSearchParams();
     if (category !== "all") query.set("category", category);
     if (sort !== "featured") query.set("sort", sort);
-    history.replaceState(null, "", "/products" + (query.size ? "?" + query : ""));
+    history.replaceState(null, "", absolute("products" + (query.size ? "?" + query : "")));
     document.title = (category === "all" ? "Бүх бараа" : labels[category]) + " | Repbish";
   };
   page.querySelector("#shop-filters").addEventListener("click", event => {
@@ -372,7 +377,7 @@ function showSizeGuide(product, selected) {
       row.values.map(cell => '<td>' + (cell ?? "—") + '</td>').join("") + '</tr>').join("") + '</tbody></table></div>' +
     '<p class="size-unit">Бүх хэмжээ сантиметрээр, хувцсыг хавтгай тавьж хэмжсэн. Цээж, бүсэлхийн тойргийг мэдэхийн тулд 2-оор үржүүлнэ. 1–2 см зөрүү байж болно.</p>' +
     (tips.length ? '<h3>Хэрхэн хэмжих вэ</h3><dl class="size-tips">' + tips.map(column => '<dt>' + esc(column) + '</dt><dd>' + measureTips[column] + '</dd>').join("") + '</dl>' : '') +
-    '<p class="size-help">Аль хэмжээ таарахыг мэдэхгүй байвал <a href="/info/contact">бидэнтэй холбогдоорой</a>.</p>';
+    '<p class="size-help">Аль хэмжээ таарахыг мэдэхгүй байвал <a href="info/contact">бидэнтэй холбогдоорой</a>.</p>';
   $("#size-dialog").showModal();
 }
 
@@ -394,7 +399,7 @@ function showProductPage(id) {
   if (!product) {
     document.title = "Бараа олдсонгүй | Repbish";
     page.innerHTML = '<div class="pp-missing"><h1>Бараа олдсонгүй</h1><p class="muted">Энэ бараа дууссан эсвэл дэлгүүрээс хасагдсан байж магадгүй.</p>' +
-      '<a class="quiet-link" href="/">Дэлгүүр рүү буцах</a></div>';
+      '<a class="quiet-link" href="./">Дэлгүүр рүү буцах</a></div>';
     return;
   }
   document.title = product.title + (product.brand ? " — " + product.brand : "") + " | Repbish";
@@ -403,7 +408,7 @@ function showProductPage(id) {
     product.image && { src:media(product.image, product.demo), label:"Өлгүүр дээр" }].filter(Boolean);
   const colors = [...new Set(product.variants.map(variant => variant.color))];
   const inLooks = looks.map((look, index) => ({ look, index })).filter(({ look }) => look.pins.some(pin => pin.product === product.id));
-  page.innerHTML = '<nav class="pp-crumbs" aria-label="Зам"><a href="/">Дэлгүүр</a><span aria-hidden="true">/</span><a href="/products?category=' + encodeURIComponent(product.category) + '">' +
+  page.innerHTML = '<nav class="pp-crumbs" aria-label="Зам"><a href="./">Дэлгүүр</a><span aria-hidden="true">/</span><a href="products?category=' + encodeURIComponent(product.category) + '">' +
     esc(labels[product.category] ?? "Бүх бараа") + '</a></nav><div class="pp-layout"><div class="pp-gallery"><div class="pp-main"><img id="pp-image" alt="' +
     esc(product.title) + '" src="' + esc(shots[0]?.src ?? "") + '"></div>' +
     (shots.length > 1 ? '<div class="pp-thumbs">' + shots.map((shot, index) => '<button type="button" data-shot="' + index + '" aria-label="' + shot.label +
@@ -419,7 +424,7 @@ function showProductPage(id) {
     '<ul class="pp-notes"><li>Монгол даяар үнэгүй хүргэлт</li><li>Оригинал брэнд</li></ul>' +
     (product.description ? '<div class="pp-section"><h2>Тайлбар</h2><p>' + esc(product.description) + '</p></div>' : '') +
     (inLooks.length ? '<div class="pp-section"><h2>Энэ хослолд багтсан</h2><div class="pp-looks">' + inLooks.map(({ look, index }) =>
-      '<a href="/#look-' + index + '"><img alt="" loading="lazy" src="' + esc(look.src ?? media(look.image)) + '"><span>' + esc(look.title) + '</span></a>').join("") +
+      '<a href="./#look-' + index + '"><img alt="" loading="lazy" src="' + esc(look.src ?? media(look.image)) + '"><span>' + esc(look.title) + '</span></a>').join("") +
       '</div></div>' : '') + '</div></div>';
   let color = colors.find(name => product.variants.some(variant => variant.color === name && buyable(variant))) ?? colors[0];
   let chosen = null;
@@ -449,7 +454,7 @@ function showProductPage(id) {
     else if (target.id === "pp-add") addToCart(product, chosen);
     else if (target.id === "pp-guide") showSizeGuide(product, chosen?.size);
     else if (target.id === "pp-share") {
-      const link = location.origin + "/products/" + encodeURIComponent(product.id);
+      const link = absolute("products/" + encodeURIComponent(product.id));
       try {
         if (navigator.share) await navigator.share({ title:product.title, url:link });
         else { await navigator.clipboard.writeText(link); target.textContent = "Холбоос хуулагдлаа"; }
@@ -466,7 +471,7 @@ function showProductPage(id) {
 }
 $("#related-rail").addEventListener("click", event => {
   const item = event.target.closest("[data-product]");
-  if (item) location.assign("/products/" + encodeURIComponent(item.dataset.product));
+  if (item) location.assign(absolute("products/" + encodeURIComponent(item.dataset.product)));
 });
 function cartRows() {
   const selection = [];
@@ -541,8 +546,8 @@ menuDialog.addEventListener("click", event => {
 });
 function showMenuCategories() {
   const present = Object.entries(labels).filter(([key]) => key !== "all" && products.some(product => product.category === key));
-  $("#menu-shop").innerHTML = '<li><a href="/products">Бүх бараа</a></li>' +
-    present.map(([key, label]) => '<li><a href="/products?category=' + key + '">' + label + '</a></li>').join("");
+  $("#menu-shop").innerHTML = '<li><a href="products">Бүх бараа</a></li>' +
+    present.map(([key, label]) => '<li><a href="products?category=' + key + '">' + label + '</a></li>').join("");
 }
 let dragged = false;
 for (const container of [rail, stage, panel]) {
@@ -619,7 +624,7 @@ checkoutForm.addEventListener("submit", async event => {
   button.disabled = true;
   $("#checkout-error").textContent = "";
   try {
-    const data = await api("/api/checkout", {
+    const data = await api("api/checkout", {
       method:"POST", headers:{ "Content-Type":"application/json" },
       body:JSON.stringify({ ...fields, items, id:attempt.id })
     });
@@ -636,7 +641,7 @@ async function orderStatus(id) {
   const button = $("#check-order");
   button.disabled = true;
   try {
-    const info = await api("/api/orders/" + encodeURIComponent(id));
+    const info = await api("api/orders/" + encodeURIComponent(id));
     const names = { pending:"Төлбөр хүлээгдэж байна", paid:"Төлбөр баталгаажлаа", shipped:"Хүргэлтэд гарсан", canceled:"Захиалга цуцлагдсан" };
     area.replaceChildren();
     const status = document.createElement("p");
@@ -680,14 +685,14 @@ const infoPages = {
     '<h2>Хэрхэн явагдах вэ</h2><ol><li>Төлбөр Wire-ээр баталгаажсаны дараа захиалга бэлтгэгдэнэ.</li>' +
     '<li>Илгээхээс өмнө бид таны утсаар холбогдож хаягаа баталгаажуулна.</li>' +
     '<li>Хүргэлтийн дугаар гарвал захиалгын хуудсанд харагдана.</li></ol>' +
-    '<h2>Асуулт байвал</h2><p><a href="/info/contact">Холбоо барих</a> хуудсанд байгаа утсаар захиалгын дугаараа хэлж холбогдоорой.</p>' },
+    '<h2>Асуулт байвал</h2><p><a href="info/contact">Холбоо барих</a> хуудсанд байгаа утсаар захиалгын дугаараа хэлж холбогдоорой.</p>' },
   returns:{ title:"Буцаалт, солилт", body:
     '<p class="info-lead">Хэмжээ таараагүй эсвэл сэтгэлд нийцээгүй бол хүлээн авснаас хойш ' + fill("7") + ' хоногийн дотор буцааж эсвэл сольж болно.</p>' +
     '<h2>Нөхцөл</h2><ul><li>Өмсөөгүй, угаагаагүй, шошго нь бүтэн байх</li><li>Анхны савлагаатай байх</li>' +
     '<li>Буцаах боломжгүй: ' + fill("дотуур хувцас, хямдралтай бараа") + '</li></ul>' +
     '<h2>Хэмжээ солих</h2><p>Өөр хэмжээ үлдэгдэлтэй бол ' + fill("үнэгүй") + ' сольж өгнө.</p>' +
     '<h2>Мөнгө буцаалт</h2><p>Буцаасан барааг шалгасны дараа ' + fill("5") + ' ажлын өдрийн дотор төлсөн аргаар тань буцаана.</p>' +
-    '<h2>Яаж эхлэх вэ</h2><p><a href="/info/contact">Холбоо барих</a> хуудсаар холбогдож захиалгын дугаар, буцаах шалтгаанаа хэлээрэй.</p>' },
+    '<h2>Яаж эхлэх вэ</h2><p><a href="info/contact">Холбоо барих</a> хуудсаар холбогдож захиалгын дугаар, буцаах шалтгаанаа хэлээрэй.</p>' },
   privacy:{ title:"Нууцлал", body:
     '<p class="info-lead">Repbish таны мэдээллийг зөвхөн захиалгыг тань хүргэхэд ашиглана.</p>' +
     '<h2>Бид юу цуглуулдаг вэ</h2><ul><li>Нэр, утасны дугаар, хүргэлтийн хаяг — захиалга хүргэх, тантай холбогдоход</li>' +
@@ -695,7 +700,7 @@ const infoPages = {
     '<h2>Төлбөр</h2><p>Төлбөрийг Wire.mn-ийн хуудсаар хийнэ. Таны картын мэдээллийг Repbish хардаггүй, хадгалдаггүй.</p>' +
     '<h2>Сагс</h2><p>Сагсанд хийсэн бараа зөвхөн таны хөтөч дээр хадгалагдана.</p>' +
     '<h2>Хэнтэй хуваалцдаг вэ</h2><p>Таны мэдээллийг худалдахгүй. Хүргэлт хийх ' + fill("хүргэлтийн компани") + '-д зөвхөн нэр, утас, хаягийг өгнө.</p>' +
-    '<h2>Таны эрх</h2><p>Мэдээллээ харах, засах, устгуулахыг хүсвэл <a href="/info/contact">бидэнтэй холбогдоорой</a>.</p>' },
+    '<h2>Таны эрх</h2><p>Мэдээллээ харах, засах, устгуулахыг хүсвэл <a href="info/contact">бидэнтэй холбогдоорой</a>.</p>' },
   contact:{ title:"Холбоо барих", body:
     '<p class="info-lead">Захиалга, хэмжээ, хүргэлтийн талаар асуух зүйл байвал бидэнтэй холбогдоорой.</p>' +
     '<dl class="info-contacts"><dt>Утас</dt><dd>' + fill("9911-0000") + '</dd><dt>И-мэйл</dt><dd>' + fill("hello@repbish.com") + '</dd>' +
@@ -709,14 +714,14 @@ function showInfoPage(slug) {
   const page = $("#info-page");
   page.hidden = false;
   page.innerHTML = '<nav class="info-nav" aria-label="Дэлгүүрийн мэдээлэл">' + Object.entries(infoPages).map(([key, item]) =>
-    '<a href="/info/' + key + '"' + (key === slug ? ' aria-current="page"' : '') + '>' + item.title + '</a>').join("") +
+    '<a href="info/' + key + '"' + (key === slug ? ' aria-current="page"' : '') + '>' + item.title + '</a>').join("") +
     '</nav><article class="info-body"><h1>' + info.title + '</h1>' + info.body + '</article>';
 }
 async function initialize() {
   saveCart();
-  const infoRoute = location.pathname.match(/^\/info\/([a-z]+)$/);
+  const infoRoute = route().match(/^\/info\/([a-z]+)$/);
   if (infoRoute && Object.hasOwn(infoPages, infoRoute[1])) showInfoPage(infoRoute[1]);
-  const order = location.pathname.match(/^\/order\/([^/]+)$/);
+  const order = route().match(/^\/order\/([^/]+)$/);
   if (order) {
     $("#collection").hidden = true;
     $("#looks").hidden = true;
@@ -727,7 +732,7 @@ async function initialize() {
     return;
   }
   try {
-    const data = await api("/api/catalog");
+    const data = await api("api/catalog");
     regions = data.regions;
     checkout = data.checkout;
     products = data.products.length ? data.products : demos;
@@ -738,8 +743,8 @@ async function initialize() {
     saveCart();
     showMenuCategories();
     if (!$("#info-page").hidden) return;
-    if (location.pathname === "/products") { showShopPage(); return; }
-    const productRoute = location.pathname.match(/^\/products\/([a-z0-9-]{1,64})$/);
+    if (route() === "/products") { showShopPage(); return; }
+    const productRoute = route().match(/^\/products\/([a-z0-9-]{1,64})$/);
     if (productRoute) { showProductPage(productRoute[1]); return; }
     showRail();
     renderLooks();

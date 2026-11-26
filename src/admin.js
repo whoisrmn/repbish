@@ -1,7 +1,7 @@
 const $ = selector => document.querySelector(selector);
 const esc = value => String(value ?? "").replace(/[&<>"']/g, char => ({ "&":"&amp;", "<":"&lt;", ">":"&gt;", '"':"&quot;", "'":"&#39;" })[char]);
 const money = amount => new Intl.NumberFormat("mn-MN").format(amount) + " ₮";
-const media = key => "/media/" + encodeURIComponent(key);
+const media = key => "media/" + encodeURIComponent(key);
 const categories = { tops:"Дээгүүр", bottoms:"Өмд", outerwear:"Гадуур хувцас", accessories:"Аксессуар" };
 let catalog = { products:[], looks:[] };
 let editingProduct = null;
@@ -13,7 +13,7 @@ function message(text, error = false) {
   element.textContent = text;
 }
 async function api(path, options) {
-  const response = await fetch("/api/admin/" + path, options);
+  const response = await fetch("api/admin/" + path, options);
   const data = await response.json();
   if (!response.ok) throw new Error(data.error ?? "Дахин оролдоно уу.");
   return data;
