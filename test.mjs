@@ -236,3 +236,15 @@ test("shop page is served with its own title and listed in the sitemap", async (
   assert.match(text, /<link rel="canonical" href="https:\/\/repbish\.test\/products">/);
   assert.match(await (await call(env, "/sitemap.xml")).text(), /<loc>https:\/\/repbish\.test\/products<\/loc>/);
 });
+
+test("self-hosted Inter font files are served and allowed by the page policy", async () => {
+  const env = environment();
+  for (const name of ["inter-latin", "inter-latin-ext", "inter-cyrillic", "inter-cyrillic-ext"]) {
+    const font = await call(env, "/fonts/" + name + ".woff2");
+    assert.equal(font.status, 200, name);
+    assert.equal(font.headers.get("content-type"), "font/woff2");
+    assert.equal(new TextDecoder().decode((await font.arrayBuffer()).slice(0, 4)), "wOF2");
+  }
+  assert.equal((await call(env, "/fonts/unknown.woff2")).status, 404);
+  assert.match((await call(env, "/")).headers.get("content-security-policy"), /font-src 'self'/);
+});

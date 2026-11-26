@@ -12,7 +12,7 @@ const run = (env, sql, ...values) => statement(env, sql, ...values).run();
 const securityHeaders = {
   "X-Content-Type-Options": "nosniff", "Referrer-Policy": "no-referrer",
   "X-Frame-Options": "DENY",
-  "Content-Security-Policy": "default-src 'none'; script-src 'self'; style-src 'self' 'unsafe-inline'; img-src 'self' data: blob:; connect-src 'self'; form-action 'self'; frame-ancestors 'none'; base-uri 'none'"
+  "Content-Security-Policy": "default-src 'none'; script-src 'self'; style-src 'self' 'unsafe-inline'; img-src 'self' data: blob:; font-src 'self'; connect-src 'self'; form-action 'self'; frame-ancestors 'none'; base-uri 'none'"
 };
 function response(body, type, status = 200, cache = "no-store") {
   return new Response(body, { status, headers: { ...securityHeaders, "Content-Type": type, "Cache-Control": cache } });
@@ -426,6 +426,9 @@ export default {
       if (method === "GET" && path === "/") return await homePage(env, url.origin);
       if (method === "GET" && route.length === 3 && route[1] === "order" && uuid.test(route[2])) {
         return response(storePage({ title: "Захиалгын төлөв", robots: "noindex" }), html);
+      }
+      if (method === "GET" && route.length === 3 && route[1] === "fonts" && route[2].endsWith(".woff2") && Object.hasOwn(assets.fonts, route[2].slice(0, -6))) {
+        return response(Uint8Array.from(atob(assets.fonts[route[2].slice(0, -6)]), char => char.charCodeAt(0)), "font/woff2", 200, "public, max-age=31536000, immutable");
       }
       if (method === "GET" && path === "/favicon.svg") return response(favicon, "image/svg+xml", 200, "public, max-age=86400");
       if (method === "GET" && path === "/robots.txt") return response(robots(url.origin), "text/plain; charset=utf-8", 200, "public, max-age=3600");
