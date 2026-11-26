@@ -65,9 +65,9 @@ h1,h2,h3{font-weight:500;letter-spacing:-.01em}
    with transforms only, so nothing reflows under the pointer. */
 .collection{--open:var(--col);--side:calc(var(--col) * .36);--push:calc((var(--open) - var(--side)) / 2)}
 .collection .rail{display:flex;gap:0;justify-content:safe center}
-.collection .garment{flex:0 0 var(--side);padding:0 0 8px;position:relative;transition:translate .5s cubic-bezier(.2,.7,.2,1)}
+.collection .garment{flex:0 0 var(--side);padding:0 0 8px;position:relative;transition:translate .7s cubic-bezier(.22,.61,.36,1)}
 .collection .garment-photo{flex:none;width:var(--open);height:calc(var(--open) / .72)}
-.collection .garment.turn .garment-regular{transform:perspective(900px) rotateY(68deg);transition:transform .55s cubic-bezier(.2,.7,.2,1),opacity .25s}
+.collection .garment.turn .garment-regular{transform:perspective(900px) rotateY(68deg);transition:transform .8s cubic-bezier(.22,.61,.36,1),opacity .5s}
 .collection .garment:hover,.collection .garment:focus-visible{z-index:3}
 .collection .garment.turn:is(:hover,:focus-visible) .garment-regular{transform:perspective(900px) rotateY(0)}
 .collection .garment:is(:hover,:focus-visible) ~ .garment{translate:var(--push) 0}
@@ -110,11 +110,9 @@ h1,h2,h3{font-weight:500;letter-spacing:-.01em}
 .rail-footer strong{font-weight:400;color:var(--ink)}
 @media(hover:hover) and (prefers-reduced-motion:no-preference){
   .garment-photo img{transition:opacity .25s ease}
-  .garment:hover .garment-photo{animation:sway .9s ease-out}
   .garment:hover .front-ready .garment-front{opacity:1}
   .garment:hover .front-ready .garment-regular{opacity:0}
 }
-@keyframes sway{0%{transform:rotate(0)}25%{transform:rotate(2.2deg)}55%{transform:rotate(-1.4deg)}80%{transform:rotate(.6deg)}100%{transform:rotate(0)}}
 
 /* ---------- Try the Look ---------- */
 /* left: a row of full-body looks, the active one sharp in the middle; right: the pieces in that look */
@@ -505,3 +503,11 @@ dialog::backdrop{background:rgb(20 20 20/.28);backdrop-filter:blur(2px)}
 h1,.section-head h2,.shop-head h1,.info-body h1{letter-spacing:-.025em}
 /* lift each rack photo so its hook sits on the rod (amount measured per photo in client.js) */
 .collection .garment-photo img{translate:0 calc(var(--lift, 0px) * -1)}
+/* rack focus: hovering one piece softly blurs and fades the rest, like a spotlight */
+.collection .garment-photo{transition:opacity .7s cubic-bezier(.22,.61,.36,1),filter .7s cubic-bezier(.22,.61,.36,1)}
+.collection .garment-photo img{transition:opacity .6s cubic-bezier(.22,.61,.36,1),transform .8s cubic-bezier(.22,.61,.36,1)}
+@media(hover:hover){
+  .collection .rail:has(.garment:hover) .garment:not(:hover) .garment-photo{opacity:.4;filter:blur(2.5px) saturate(.6)}
+}
+.collection .rail:has(.garment:focus-visible) .garment:not(:focus-visible) .garment-photo{opacity:.4;filter:blur(2.5px) saturate(.6)}
+@media(prefers-reduced-motion:reduce){.collection .rail .garment .garment-photo{filter:none!important}}
