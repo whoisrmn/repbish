@@ -511,3 +511,19 @@ h1,.section-head h2,.shop-head h1,.info-body h1{letter-spacing:-.025em}
 }
 .collection .rail:has(.garment:focus-visible) .garment:not(:focus-visible) .garment-photo{opacity:.4;filter:blur(2.5px) saturate(.6)}
 @media(prefers-reduced-motion:reduce){.collection .rail .garment .garment-photo{filter:none!important}}
+/* shop grid: three large pieces per row on desktop, two on phones, more air between them */
+.shop-grid{grid-template-columns:repeat(3,minmax(0,1fr));gap:clamp(36px,4.5vw,72px) clamp(16px,2.4vw,40px);max-width:1500px;margin-inline:auto}
+.shop-photo img{padding:6%}
+@media(max-width:720px){.shop-grid{grid-template-columns:repeat(2,minmax(0,1fr));gap:32px 12px}}
+/* Try the Look studio: a soft grey backdrop that matches studio photos; each photo's edges fade into it,
+   so overlapping looks blend like one lookbook set instead of showing rectangles */
+.look-stage{background:linear-gradient(#cbc9cc,#d3d1d4 45%,#d6d4d7);border-radius:2px}
+.look-main{padding-inline:0}
+.look-stage,.look-controls{margin-inline:var(--gutter)}
+.look-controls{padding-inline:0}
+.look-figure.photo{bottom:0;height:100%;
+  -webkit-mask-image:linear-gradient(90deg,transparent,#000 16%,#000 84%,transparent),linear-gradient(transparent,#000 10%);
+  -webkit-mask-composite:source-in;mask-image:linear-gradient(90deg,transparent,#000 16%,#000 84%,transparent),linear-gradient(transparent,#000 10%);mask-composite:intersect}
+.look-figure.photo::after{display:none}
+.look-figure.photo .hotspot{box-shadow:0 1px 6px rgb(0 0 0/.3)}
+.look-stage{overflow:hidden}

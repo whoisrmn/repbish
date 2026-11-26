@@ -190,7 +190,7 @@ function renderLooks() {
     const dots = lookPieces(look).pins.map(({ x,y,item }, number) =>
       '<button type="button" class="hotspot" style="left:' + x + '%;top:' + y + '%" data-product="' + esc(item.id) +
       '" aria-label="' + esc(item.title) + '">' + (number + 1) + '</button>').join("");
-    return '<div class="look-figure" data-look="' + index + '" role="group" aria-roledescription="slide" aria-label="' + esc(look.title) +
+    return '<div class="look-figure' + (look.demo ? "" : " photo") + '" data-look="' + index + '" role="group" aria-roledescription="slide" aria-label="' + esc(look.title) +
       '"><img alt="' + esc(look.title) + '" decoding="async" draggable="false"' + (index > 2 ? ' loading="lazy"' : '') +
       ' src="' + esc(look.src ?? media(look.image)) + '">' + dots + '</div>';
   }).join("");
