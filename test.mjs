@@ -115,3 +115,25 @@ test("Wire checkout reserves stock, replays safely and only trusts verified paym
   assert.equal(result.tracking,"TRACK-1");
   assert.equal("phone" in result,false);
 });
+
+test("product pages carry their own title and share-preview tags, and hide drafts", async () => {
+  const env = environment();
+  await setupOwner(env);
+  const product = await newProduct(env, 0);
+  const page = await call(env, "/products/" + product.id);
+  assert.equal(page.status, 200);
+  const html = await page.text();
+  assert.match(html, /<title>Test Tee — Brand \| Repbish<\/title>/);
+  assert.match(html, /<meta property="og:image" content="https:\/\/repbish\.test\/media\/[a-f0-9-]+\.webp">/);
+  assert.match(html, /<link rel="canonical" href="https:\/\/repbish\.test\/products\//);
+  const data = JSON.parse(html.match(/<script type="application\/ld\+json">(.*?)<\/script>/)[1]);
+  assert.equal(data.offers.price, 59000);
+  assert.equal(data.offers.availability, "https://schema.org/OutOfStock");
+  assert.equal((await call(env, "/products/00000000-0000-4000-8000-000000000000")).status, 404);
+  const hidden = { id:product.id, title:product.title, brand:product.brand, category:product.category, image:product.image, active:false,
+    variants:product.variants.map(({ id, version, size, color, price, stock }) => ({ id, version, size, color, price, stock, active:true })) };
+  assert.equal((await post(env, "/api/admin/product", hidden, owner)).status, 200);
+  const draft = await call(env, "/products/" + product.id);
+  assert.equal(draft.status, 404);
+  assert.match(await draft.text(), /<meta name="robots" content="noindex">/);
+});

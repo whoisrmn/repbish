@@ -36,8 +36,18 @@ h1,h2,h3{font-weight:500;letter-spacing:-.01em}
 .collection .filters button{padding:6px 0}
 .collection .catalog-controls p{font-size:12px}
 .collection .rack{margin-block:auto}
-.collection .rail{grid-auto-columns:var(--col);justify-content:safe center;gap:clamp(8px,2vw,32px)}
-.collection .garment-photo{height:calc(var(--col) / .72)}
+/* side-on rack: each hanger takes a narrow slot (--side) on the rod; its photo box is the full front width (--open),
+   centred over the slot. Hover/focus turns the garment to face front and slides the neighbours aside
+   with transforms only, so nothing reflows under the pointer. */
+.collection{--open:var(--col);--side:calc(var(--col) * .36);--push:calc((var(--open) - var(--side)) / 2)}
+.collection .rail{display:flex;gap:0;justify-content:safe center}
+.collection .garment{flex:0 0 var(--side);padding:0 0 8px;position:relative;transition:translate .5s cubic-bezier(.2,.7,.2,1)}
+.collection .garment-photo{flex:none;width:var(--open);height:calc(var(--open) / .72)}
+.collection .garment.turn .garment-regular{transform:perspective(900px) rotateY(68deg);transition:transform .55s cubic-bezier(.2,.7,.2,1),opacity .25s}
+.collection .garment:hover,.collection .garment:focus-visible{z-index:3}
+.collection .garment.turn:is(:hover,:focus-visible) .garment-regular{transform:perspective(900px) rotateY(0)}
+.collection .garment:is(:hover,:focus-visible) ~ .garment{translate:var(--push) 0}
+.collection .garment:has(~ .garment:is(:hover,:focus-visible)){translate:calc(var(--push) * -1) 0}
 .railcap{display:flex;align-items:center;justify-content:center;gap:14px;font-size:11px;font-weight:600;letter-spacing:.18em;text-transform:uppercase;line-height:1;margin-bottom:clamp(20px,3vw,32px)}
 .railcap-sep{width:1px;height:12px;background:currentColor;opacity:.25}
 .railcap-dim{color:var(--muted)}
@@ -157,6 +167,53 @@ h1,h2,h3{font-weight:500;letter-spacing:-.01em}
   .look-step{width:20px}.look-step.active{width:96px}.look-steps{gap:6px}
 }
 @media(prefers-reduced-motion:reduce){.look-step.active .look-step-bar span{transform:scaleX(1)}}
+
+/* ---------- product page ---------- */
+.product-page{padding:clamp(16px,2.5vw,28px) var(--gutter) clamp(40px,6vw,80px)}
+.pp-crumbs{display:flex;gap:8px;font-size:12px;color:var(--muted);margin-bottom:clamp(16px,2.5vw,28px)}
+.pp-crumbs a:hover{color:var(--ink)}
+.pp-layout{display:grid;grid-template-columns:minmax(0,1.3fr) minmax(300px,.7fr);gap:clamp(24px,5vw,80px);align-items:start}
+.pp-gallery{position:sticky;top:76px;display:grid;gap:10px}
+.pp-main{background:var(--soft);height:min(78vh,820px);display:grid;place-items:center;padding:clamp(16px,3vw,40px)}
+.pp-main img{max-width:100%;max-height:100%;object-fit:contain}
+.pp-thumbs{display:flex;gap:10px}
+.pp-thumbs button{border:1px solid transparent;background:var(--soft);padding:6px;width:84px;height:100px}
+.pp-thumbs button[aria-pressed="true"]{border-color:var(--ink)}
+.pp-thumbs img{width:100%;height:100%;object-fit:contain}
+.pp-info{display:grid;gap:18px;padding-top:4px}
+.pp-info h1{font-size:clamp(24px,2.6vw,34px);line-height:1.15;margin-top:-10px}
+.pp-price{font-size:18px}
+.pp-option{display:grid;gap:10px}
+.pp-label{font-size:12px;color:var(--muted)}
+.pp-label span{color:var(--ink)}
+.pp-chips{display:flex;flex-wrap:wrap;gap:8px}
+.pp-chips button{min-width:52px;min-height:42px;padding:8px 14px;border:1px solid #d6d6d6;background:#fff;font-size:13px}
+.pp-chips button:not(:disabled):hover{border-color:var(--ink)}
+.pp-chips button[aria-pressed="true"]{border-color:var(--ink);background:var(--ink);color:#fff}
+.pp-chips button:disabled{text-decoration:line-through;color:var(--muted)}
+.pp-stock{font-size:12px;color:var(--muted);min-height:18px;margin-top:-6px}
+.pp-actions{display:grid;gap:10px}
+.pp-share{width:100%;min-height:46px}
+.pp-notes{list-style:none;margin:0;padding:16px 0 0;border-top:1px solid var(--line);display:grid;gap:6px;font-size:13px;color:var(--muted)}
+.pp-notes li::before{content:"— "}
+.pp-section{border-top:1px solid var(--line);padding-top:18px;display:grid;gap:10px}
+.pp-section h2{font-size:14px;font-weight:500}
+.pp-section p{font-size:13px;white-space:pre-line;color:#333}
+.pp-looks{display:flex;gap:12px;flex-wrap:wrap}
+.pp-looks a{display:grid;gap:6px;width:92px;font-size:12px}
+.pp-looks img{width:92px;height:140px;object-fit:contain;object-position:bottom;background:var(--soft);padding:6px}
+.pp-looks a:hover span{text-decoration:underline}
+.pp-missing{min-height:50vh;display:grid;align-content:center;justify-items:center;gap:12px;text-align:center}
+.pp-missing h1{font-size:28px}
+.detail-more{justify-self:start;margin-top:14px}
+.related{padding:clamp(28px,4vw,56px) 0 clamp(36px,5vw,64px);border-top:1px solid var(--line)}
+.related h2{font-size:18px;padding-inline:var(--gutter);margin-bottom:20px}
+.related .rail{grid-auto-columns:clamp(150px,18vw,230px)}
+@media(max-width:820px){
+  .pp-layout{grid-template-columns:1fr}
+  .pp-gallery{position:static}
+  .pp-main{height:min(62svh,560px)}
+}
 
 /* ---------- footer + order status ---------- */
 .site-footer{padding:28px var(--gutter);display:flex;justify-content:space-between;align-items:center;gap:14px;border-top:1px solid var(--line);font-size:12px;color:var(--muted)}

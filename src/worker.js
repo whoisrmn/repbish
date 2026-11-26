@@ -294,6 +294,42 @@ async function wireWebhook(request, env) {
   }
   return json({ ok: true });
 }
+const escapeHtml = value => String(value ?? "").replace(/[&<>"']/g, char => ({ "&":"&amp;", "<":"&lt;", ">":"&gt;", '"':"&quot;", "'":"&#39;" })[char]);
+const productPath = /^[a-z0-9-]{1,64}$/;
+// Product pages are the storefront page with the product's own title, description and share-preview tags
+// filled in on the server, so link previews (Facebook, Messenger, Telegram) and search engines see them without JavaScript.
+async function productPage(env, id, origin) {
+  const product = uuid.test(id) ? await first(env, "SELECT * FROM products WHERE id=? AND active=1", id) : null;
+  const offer = product && await first(env, "SELECT MIN(price) AS price, SUM(stock) AS stock, COUNT(*) AS count FROM variants WHERE product_id=? AND active=1", id);
+  if (!product || !offer?.count) {
+    return response(assets.shopHtml.replace("<head>", '<head>\n<meta name="robots" content="noindex">'), "text/html; charset=utf-8", 404);
+  }
+  const url = origin + "/products/" + product.id;
+  const image = origin + "/media/" + encodeURIComponent(product.front_image || product.image);
+  const title = product.title + " — " + product.brand + " | Repbish";
+  const description = (product.description.replace(/\s+/g, " ").trim() || product.brand + " " + product.title + ". Монгол даяар үнэгүй хүргэлт.").slice(0, 200);
+  const data = {
+    "@context": "https://schema.org", "@type": "Product", name: product.title, brand: { "@type": "Brand", name: product.brand },
+    description, image, url,
+    offers: { "@type": "Offer", price: offer.price, priceCurrency: "MNT", url,
+      availability: offer.stock > 0 ? "https://schema.org/InStock" : "https://schema.org/OutOfStock" }
+  };
+  const tags = [
+    '<link rel="canonical" href="' + escapeHtml(url) + '">',
+    '<meta property="og:type" content="product">', '<meta property="og:site_name" content="Repbish">',
+    '<meta property="og:title" content="' + escapeHtml(product.title + " — " + product.brand) + '">',
+    '<meta property="og:description" content="' + escapeHtml(description) + '">',
+    '<meta property="og:url" content="' + escapeHtml(url) + '">', '<meta property="og:image" content="' + escapeHtml(image) + '">',
+    '<meta property="product:price:amount" content="' + offer.price + '">', '<meta property="product:price:currency" content="MNT">',
+    '<meta name="twitter:card" content="summary_large_image">',
+    '<script type="application/ld+json">' + JSON.stringify(data).replace(/</g, "\\u003c") + '</script>'
+  ].join("\n");
+  const html = assets.shopHtml
+    .replace(/<title>[^<]*<\/title>/, "<title>" + escapeHtml(title) + "</title>")
+    .replace(/<meta name="description" content="[^"]*">/, '<meta name="description" content="' + escapeHtml(description) + '">')
+    .replace("</head>", tags + "\n</head>");
+  return response(html, "text/html; charset=utf-8", 200, "public, max-age=60");
+}
 async function adminOrders(env) {
   const orders = await rows(env, "SELECT id,created,status,amount,buyer,phone,province,address,tracking FROM orders ORDER BY created DESC LIMIT 100");
   if (!orders.length) return orders;
@@ -310,6 +346,9 @@ export default {
       const route = path.split("/");
       if (method === "GET" && (path === "/" || (route.length === 3 && route[1] === "order" && uuid.test(route[2])))) {
         return response(assets.shopHtml, "text/html; charset=utf-8");
+      }
+      if (method === "GET" && route.length === 3 && route[1] === "products" && productPath.test(route[2])) {
+        return await productPage(env, route[2], url.origin);
       }
       if (method === "GET" && path === "/style.css") return response(assets.storeCss, "text/css; charset=utf-8");
       if (method === "GET" && path === "/shop.js") return response(assets.clientJs, "text/javascript; charset=utf-8");

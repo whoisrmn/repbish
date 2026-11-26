@@ -80,15 +80,19 @@ function saveCart() {
   try { localStorage.setItem("repbish-cart-v1", JSON.stringify([...cart])); } catch {}
   $("#bag-count").textContent = [...cart.values()].reduce((sum, quantity) => sum + quantity, 0);
 }
-function garment(product, index) {
+// On the rack a garment hangs side-on; hovering turns it to face front.
+// With a front photo, the main photo is the side shot and the front photo swaps in on hover.
+// Without one ("turn" class), the main photo is turned side-on in 3D and rotates flat on hover.
+function garment(product, index, labelled = false) {
   const src = esc(media(product.image, product.demo));
   const qty = product.variants.reduce((sum, variant) => sum + variant.stock, 0);
   const available = product.demo || qty;
   const tag = available ? money(priceOf(product)) : "Дууссан";
-  return '<button type="button" class="garment" data-product="' + esc(product.id) + '" data-category="' + esc(product.category) +
-    '"><span class="garment-photo"><img class="garment-regular" alt="" decoding="async"' + (index >= 5 ? ' loading="lazy"' : '') + ' src="' + src +
-    '"><span class="tag' + (available ? '' : ' sold') + '">' + tag + '</span></span><span class="garment-label">' + esc(product.title) +
-    '</span><span class="garment-brand">' + esc(product.brand) + '</span></button>';
+  return '<button type="button" class="garment' + (product.front_image ? '' : ' turn') + '" data-product="' + esc(product.id) +
+    '" data-category="' + esc(product.category) + '" aria-label="' + esc(product.title + " · " + tag) +
+    '"><span class="garment-photo"><img class="garment-regular" alt="" decoding="async"' + (index >= 8 ? ' loading="lazy"' : '') + ' src="' + src +
+    '"><span class="tag' + (available ? '' : ' sold') + '">' + tag + '</span></span>' +
+    (labelled ? '<span class="garment-label">' + esc(product.title) + '</span><span class="garment-brand">' + esc(product.brand) + '</span>' : '') + '</button>';
 }
 function showRail() {
   if (products.length >= 5) {
@@ -98,8 +102,14 @@ function showRail() {
   const categories = Object.entries(labels).filter(([key]) => key === "all" || products.some(product => product.category === key));
   $("#filters").innerHTML = categories.map(([key, label]) =>
     '<button type="button" data-category="' + key + '" aria-pressed="' + (key === "all") + '">' + label + '</button>').join("");
-  rail.innerHTML = products.map(garment).join("");
-  for (const card of rail.children) {
+  // with only the few sample pieces, repeat them so the sample rack looks full
+  const hanging = products.every(product => product.demo) ? [...products, ...products, ...products] : products;
+  rail.innerHTML = hanging.map((product, index) => garment(product, index)).join("");
+  bindFronts(rail);
+}
+// loads the optional front-facing photo the first time a hanger is hovered or focused
+function bindFronts(container) {
+  for (const card of container.children) {
     const product = products.find(item => item.id === card.dataset.product);
     if (!product.front_image) continue;
     const loadFront = () => {
@@ -223,7 +233,8 @@ function details(product) {
     '</p><p>' + esc(product.description) + '</p><form id="product-options" class="form-grid"><label>Хэмжээ, өнгө<select name="variant"' +
     (!purchasable && !product.demo ? " disabled" : "") + '>' + options + '</select></label><strong id="variant-price" class="detail-price"></strong>' +
     (product.demo ? '' : '<button class="primary" type="submit"' +
-      (!purchasable ? ' disabled>Дууссан' : '>Сагсанд нэмэх') + '</button>') + '</form></div></div>';
+      (!purchasable ? ' disabled>Дууссан' : '>Сагсанд нэмэх') + '</button>') + '</form><a class="quiet-link detail-more" href="/products/' +
+    encodeURIComponent(product.id) + '">Дэлгэрэнгүй үзэх →</a></div></div>';
   const form = $("#product-options");
   const select = form.elements.variant;
   const showPrice = () => {
@@ -245,6 +256,96 @@ function details(product) {
   });
   productDialog.showModal();
 }
+// ---------- product page (/products/:id) ----------
+function addToCart(product, variant) {
+  if (!variant?.stock || product.demo) return;
+  const count = cart.get(variant.id) ?? 0;
+  if (count < Math.min(variant.stock, 10)) cart.set(variant.id, count + 1);
+  saveCart();
+  openBag();
+  $("#announcement").textContent = product.title + " сагсанд нэмэгдлээ.";
+}
+function showProductPage(id) {
+  const page = $("#product-page");
+  $("#collection").hidden = true;
+  $("#looks").hidden = true;
+  page.hidden = false;
+  const product = products.find(item => item.id === id);
+  if (!product) {
+    document.title = "Бараа олдсонгүй | Repbish";
+    page.innerHTML = '<div class="pp-missing"><h1>Бараа олдсонгүй</h1><p class="muted">Энэ бараа дууссан эсвэл дэлгүүрээс хасагдсан байж магадгүй.</p>' +
+      '<a class="quiet-link" href="/">Дэлгүүр рүү буцах</a></div>';
+    return;
+  }
+  document.title = product.title + (product.brand ? " — " + product.brand : "") + " | Repbish";
+  const buyable = variant => product.demo || variant.stock > 0;
+  const shots = [product.front_image && { src:media(product.front_image), label:"Урд тал" },
+    product.image && { src:media(product.image, product.demo), label:"Өлгүүр дээр" }].filter(Boolean);
+  const colors = [...new Set(product.variants.map(variant => variant.color))];
+  const inLooks = looks.map((look, index) => ({ look, index })).filter(({ look }) => look.pins.some(pin => pin.product === product.id));
+  page.innerHTML = '<nav class="pp-crumbs" aria-label="Зам"><a href="/">Дэлгүүр</a><span aria-hidden="true">/</span><a href="/#collection">' +
+    esc(labels[product.category] ?? "Цуглуулга") + '</a></nav><div class="pp-layout"><div class="pp-gallery"><div class="pp-main"><img id="pp-image" alt="' +
+    esc(product.title) + '" src="' + esc(shots[0]?.src ?? "") + '"></div>' +
+    (shots.length > 1 ? '<div class="pp-thumbs">' + shots.map((shot, index) => '<button type="button" data-shot="' + index + '" aria-label="' + shot.label +
+      '" aria-pressed="' + (index === 0) + '"><img alt="" src="' + esc(shot.src) + '"></button>').join("") + '</div>' : '') +
+    '</div><div class="pp-info">' + (product.brand ? '<p class="overline">' + esc(product.brand) + '</p>' : '') +
+    '<h1>' + esc(product.title) + '</h1><p class="pp-price" id="pp-price"></p>' +
+    '<div class="pp-option"><p class="pp-label">Өнгө: <span id="pp-color-name"></span></p>' + (colors.length > 1 ? '<div class="pp-chips" id="pp-colors">' +
+      colors.map(color => '<button type="button" data-color="' + esc(color) + '">' + esc(color) + '</button>').join("") + '</div>' : '') + '</div>' +
+    '<div class="pp-option"><p class="pp-label">Хэмжээ</p><div class="pp-chips" id="pp-sizes"></div></div><p id="pp-stock" class="pp-stock" aria-live="polite"></p>' +
+    '<div class="pp-actions">' + (product.demo ? '' : '<button type="button" class="primary" id="pp-add">Сагсанд нэмэх</button>') +
+    '<button type="button" class="secondary pp-share" id="pp-share">Холбоос хуваалцах</button></div>' +
+    '<ul class="pp-notes"><li>Монгол даяар үнэгүй хүргэлт</li><li>Оригинал брэнд</li></ul>' +
+    (product.description ? '<div class="pp-section"><h2>Тайлбар</h2><p>' + esc(product.description) + '</p></div>' : '') +
+    (inLooks.length ? '<div class="pp-section"><h2>Энэ хослолд багтсан</h2><div class="pp-looks">' + inLooks.map(({ look, index }) =>
+      '<a href="/#look-' + index + '"><img alt="" loading="lazy" src="' + esc(look.src ?? media(look.image)) + '"><span>' + esc(look.title) + '</span></a>').join("") +
+      '</div></div>' : '') + '</div></div>';
+  let color = colors.find(name => product.variants.some(variant => variant.color === name && buyable(variant))) ?? colors[0];
+  let chosen = null;
+  const render = () => {
+    const sizes = product.variants.filter(variant => variant.color === color);
+    if (!chosen || chosen.color !== color) chosen = sizes.find(buyable) ?? null;
+    $("#pp-color-name").textContent = color;
+    for (const button of page.querySelectorAll("[data-color]")) button.setAttribute("aria-pressed", String(button.dataset.color === color));
+    $("#pp-sizes").innerHTML = sizes.map(variant => '<button type="button" data-variant="' + esc(variant.id) + '" aria-pressed="' + (variant === chosen) + '"' +
+      (buyable(variant) ? '' : ' disabled') + '>' + esc(variant.size) + '</button>').join("");
+    $("#pp-price").textContent = money(chosen?.price ?? Math.min(...sizes.map(variant => variant.price)));
+    $("#pp-stock").textContent = product.demo ? "" : !chosen ? "Энэ өнгө дууссан" :
+      chosen.stock <= 3 ? "Зөвхөн " + chosen.stock + " ширхэг үлдсэн" : "Бэлэн байгаа";
+    const add = $("#pp-add");
+    if (add) { add.disabled = !chosen?.stock; add.textContent = chosen?.stock ? "Сагсанд нэмэх" : "Дууссан"; }
+  };
+  render();
+  page.onclick = async event => {
+    const target = event.target.closest("button");
+    if (!target) return;
+    if (target.dataset.color) { color = target.dataset.color; chosen = null; render(); }
+    else if (target.dataset.variant) { chosen = product.variants.find(variant => variant.id === target.dataset.variant); render(); }
+    else if (target.dataset.shot) {
+      $("#pp-image").src = shots[Number(target.dataset.shot)].src;
+      for (const button of page.querySelectorAll("[data-shot]")) button.setAttribute("aria-pressed", String(button === target));
+    }
+    else if (target.id === "pp-add") addToCart(product, chosen);
+    else if (target.id === "pp-share") {
+      const link = location.origin + "/products/" + encodeURIComponent(product.id);
+      try {
+        if (navigator.share) await navigator.share({ title:product.title, url:link });
+        else { await navigator.clipboard.writeText(link); target.textContent = "Холбоос хуулагдлаа"; }
+      } catch { /* the viewer closed the share sheet */ }
+    }
+  };
+  const others = products.filter(item => item.id !== product.id)
+    .sort((left, right) => Number(right.category === product.category) - Number(left.category === product.category)).slice(0, 10);
+  if (others.length) {
+    $("#related").hidden = false;
+    $("#related-rail").innerHTML = others.map((item, index) => garment(item, index, true)).join("");
+    bindFronts($("#related-rail"));
+  }
+}
+$("#related-rail").addEventListener("click", event => {
+  const item = event.target.closest("[data-product]");
+  if (item) location.assign("/products/" + encodeURIComponent(item.dataset.product));
+});
 function cartRows() {
   const selection = [];
   for (const product of products) {
@@ -435,8 +536,18 @@ async function initialize() {
     const ids = new Set(data.products.flatMap(product => product.variants.map(variant => variant.id)));
     for (const id of cart.keys()) if (!ids.has(id)) cart.delete(id);
     saveCart();
+    const productRoute = location.pathname.match(/^\/products\/([a-z0-9-]{1,64})$/);
+    if (productRoute) { showProductPage(productRoute[1]); return; }
     showRail();
     renderLooks();
+    // product pages link to "/#look-N" to open that look directly
+    const lookHash = location.hash.match(/^#look-(\d+)$/);
+    if (lookHash && looks[Number(lookHash[1])]) {
+      lookIndex = Number(lookHash[1]);
+      setPaused(true);
+      showLook();
+      $("#looks").scrollIntoView();
+    }
   } catch {
     $("#catalog-note").textContent = "Цуглуулгыг ачаалж чадсангүй. Хуудсаа шинэчилнэ үү.";
     $("#looks").hidden = true;
