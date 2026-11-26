@@ -481,6 +481,10 @@ function followCategoryHash() {
 }
 addEventListener("hashchange", followCategoryHash);
 
+// thin rule under the header once the page has scrolled
+const header = document.querySelector(".site-header");
+addEventListener("scroll", () => header.classList.toggle("scrolled", scrollY > 8), { passive:true });
+
 // ---------- mobile menu ----------
 const menuDialog = $("#menu-dialog");
 $("#menu-button").addEventListener("click", () => {

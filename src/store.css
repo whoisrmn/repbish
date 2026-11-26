@@ -1,4 +1,4 @@
-:root{--paper:#fff;--ink:#111;--muted:#737373;--line:#e8e8e6;--soft:#f5f5f3;--accent:#111;--gutter:clamp(18px,4vw,56px);--font:"Helvetica Neue",Helvetica,Arial,sans-serif;color-scheme:light}
+:root{--paper:#fff;--ink:#111;--muted:#737373;--line:#e8e8e6;--soft:#f5f5f3;--accent:#111;--gutter:clamp(18px,4vw,56px);--font:"Helvetica Neue",Helvetica,"Segoe UI Variable Text","Segoe UI",Roboto,system-ui,Arial,sans-serif;color-scheme:light}
 *{box-sizing:border-box}
 [hidden]{display:none!important}
 body{margin:0;background:var(--paper);color:var(--ink);font:15px/1.5 var(--font);-webkit-font-smoothing:antialiased}
@@ -415,3 +415,93 @@ textarea{resize:vertical;min-height:72px}
   .shop-card:hover .shop-photo:has(.shop-alt) img:first-child{opacity:0}
   .shop-card:hover .shop-name{text-decoration:underline;text-underline-offset:3px}
 }
+
+/* ======================================================================
+   Finish layer: quieter, more premium typography and controls.
+   Small uppercase labels with generous tracking, regular-weight headings,
+   thin rules and slow, soft motion. Kept last so it refines the rules above.
+   ====================================================================== */
+:root{--label-size:11px;--label-track:.18em;--ease:cubic-bezier(.22,.61,.36,1)}
+body{font-size:14px;line-height:1.6;letter-spacing:.005em;color:#141414}
+h1,h2,h3{font-weight:400;letter-spacing:-.015em}
+::selection{background:#141414;color:#fff}
+
+/* wordmark: spaced capitals read as a label, still plain editable text */
+.wordmark{font-size:15px;font-weight:600;letter-spacing:.34em;text-transform:uppercase;margin-right:-.34em}
+.site-footer .wordmark{font-size:13px}
+.menu-drawer .wordmark{font-size:14px}
+.site-header{border-bottom:1px solid transparent;transition:border-color .3s var(--ease)}
+.site-header nav a,.bag-button,.footer-links a,.menu-label,.overline,.shop-brand,.look-text small,.panel-head span,.look-meta,
+.pp-label,.shop-sort,.size-table thead th,.railcap{font-size:var(--label-size);letter-spacing:var(--label-track);text-transform:uppercase}
+.site-header nav{gap:clamp(18px,3vw,44px)}
+.site-header nav a{color:#6b6b6b;transition:color .3s var(--ease)}
+.bag-button span::before,.bag-button span::after{content:""}
+.bag-button span{display:inline-grid;place-items:center;min-width:18px;height:18px;margin-left:6px;padding:0 4px;border:1px solid currentColor;border-radius:9px;font-size:10px;letter-spacing:0}
+
+/* slim top bar */
+.announce{background:#141414;color:#f2f2f0;text-align:center;font-size:10px;letter-spacing:.22em;text-transform:uppercase;padding:9px var(--gutter)}
+
+/* buttons */
+.primary{min-height:52px;font-size:var(--label-size);letter-spacing:var(--label-track);text-transform:uppercase;font-weight:500;background:#141414;border-color:#141414;transition:background .3s var(--ease),color .3s var(--ease)}
+.primary:not(:disabled):hover{background:#fff;color:#141414}
+.secondary,.pp-share{min-height:46px;font-size:var(--label-size);letter-spacing:var(--label-track);text-transform:uppercase;border-color:#d9d9d6;transition:border-color .3s var(--ease)}
+.pp-chips button{font-size:12px;letter-spacing:.06em;min-width:56px;min-height:46px;transition:border-color .2s var(--ease),background .2s var(--ease),color .2s var(--ease)}
+.pp-guide,.quiet-link{font-size:var(--label-size);letter-spacing:.14em;text-transform:uppercase;text-decoration:none;border-bottom:1px solid currentColor;padding-bottom:2px}
+
+/* filters: quieter, with a thin underline for the active one */
+.filters button{letter-spacing:.02em;transition:color .3s var(--ease),border-color .3s var(--ease)}
+.collection .catalog-controls{font-size:15px}
+
+/* price tags on the rack: smaller, finer */
+.tag{font-size:9px;font-weight:500;letter-spacing:.08em;padding:3px 6px 2px;border-color:#e2e2df}
+
+/* Try the Look */
+.section-head h2{font-size:clamp(26px,3.4vw,44px)}
+.look-name{font-size:13px}
+.look-step-label{font-size:10px;letter-spacing:.14em;text-transform:uppercase}
+
+/* product page */
+.pp-info{gap:20px}
+.pp-info h1{font-size:clamp(22px,2.2vw,30px);letter-spacing:-.01em}
+.pp-price{font-size:15px;letter-spacing:.02em}
+.pp-notes{font-size:12px;letter-spacing:.02em}
+.pp-notes li::before{content:"";display:inline-block;width:14px;height:1px;background:currentColor;vertical-align:middle;margin-right:10px}
+.pp-section h2{font-size:var(--label-size);letter-spacing:var(--label-track);text-transform:uppercase;font-weight:500}
+.pp-crumbs{font-size:var(--label-size);letter-spacing:.14em;text-transform:uppercase}
+.pp-main{background:#f6f6f4}
+
+/* shop grid */
+.shop-head h1{font-size:clamp(26px,3.4vw,44px)}
+.shop-photo{background:#f6f6f4}
+.shop-name{font-size:13px}
+.shop-price{font-size:13px;color:#6b6b6b}
+
+/* info pages and dialogs */
+.info-body h1,.order-status h2{font-weight:400}
+.info-body h2{font-size:var(--label-size);letter-spacing:var(--label-track);text-transform:uppercase;font-weight:500;margin-top:22px}
+.dialog-head h2{font-size:var(--label-size);letter-spacing:var(--label-track);text-transform:uppercase;font-weight:500}
+dialog::backdrop{background:rgb(20 20 20/.28);backdrop-filter:blur(2px)}
+
+/* footer: roomier, label-style links */
+.site-footer{padding:clamp(36px,5vw,64px) var(--gutter);gap:22px}
+.site-footer p{font-size:var(--label-size);letter-spacing:.14em;text-transform:uppercase}
+.footer-links{gap:10px clamp(18px,3vw,40px)}
+.footer-links a{color:#6b6b6b}
+
+/* soft motion: pages fade up gently; links and photos ease */
+@media(prefers-reduced-motion:no-preference){
+  main > :not([hidden]){animation:rise .7s var(--ease) both}
+  .look-panel,.pp-info{animation:rise .8s var(--ease) .08s both}
+  .shop-photo img{transition:opacity .5s var(--ease),transform .9s var(--ease)}
+}
+@keyframes rise{from{opacity:0;transform:translateY(10px)}}
+@media(max-width:720px){
+  .wordmark{font-size:13px;letter-spacing:.3em;margin-right:-.3em}
+  .announce{font-size:9px;letter-spacing:.16em}
+}
+.site-header.scrolled{border-bottom-color:var(--line)}
+/* the first screen = window height minus top bar and header */
+.collection{min-height:calc(100svh - 60px - 32px)}
+@media(max-width:720px){.collection{min-height:calc(100svh - 54px - 30px)}}
+.bag-button{display:inline-flex;align-items:center}
+@media(max-width:720px){.announce-more{display:none}}
