@@ -6,3 +6,4 @@ dist/
 *.sqlite*
 repbish-store.zip
 .claude/
+repbish-claude-handoff.md
