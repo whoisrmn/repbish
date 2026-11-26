@@ -559,3 +559,5 @@ h1,.section-head h2,.shop-head h1,.info-body h1{letter-spacing:-.025em}
 @media(prefers-reduced-motion:reduce){.collection .rail .garment.selected ~ .garment,.collection .garment:has(~ .garment.selected){translate:none}}
 /* each photo box is wider than its slot on the rod: pad the rack so the first and last photos never get clipped at its edges */
 .collection .rail{padding-inline:max(var(--gutter), calc(var(--push) + 8px));scroll-padding-inline:max(var(--gutter), calc(var(--push) + 8px))}
+/* phones: pieces snap to the middle of the rack, so a tapped piece stays centred */
+@media(max-width:720px){.collection .garment{scroll-snap-align:center}}

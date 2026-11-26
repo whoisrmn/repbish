@@ -593,8 +593,19 @@ rail.addEventListener("click", event => {
   clearSelection();
   card.classList.add("selected");
   card.dispatchEvent(new Event("focus")); // loads the front photo
+  // bring the chosen piece to the middle of the rack
+  const target = card.offsetLeft + card.offsetWidth / 2 - rail.clientWidth / 2;
+  rail.scrollTo({ left: Math.max(0, Math.min(target, rail.scrollWidth - rail.clientWidth)),
+    behavior: matchMedia("(prefers-reduced-motion: reduce)").matches ? "auto" : "smooth" });
 }, true);
 document.addEventListener("click", event => { if (!event.target.closest("#rail")) clearSelection(); });
+// swiping the rack sideways means "keep browsing": end the focus so every piece is clear again
+let swipeStart = null;
+rail.addEventListener("touchstart", event => { swipeStart = event.touches[0].clientX; }, { passive:true });
+rail.addEventListener("touchmove", event => {
+  if (swipeStart !== null && Math.abs(event.touches[0].clientX - swipeStart) > 12) { clearSelection(); swipeStart = null; }
+}, { passive:true });
+rail.addEventListener("touchend", () => { swipeStart = null; }, { passive:true });
 
 let dragged = false;
 for (const container of [rail, stage, panel]) {
