@@ -4,3 +4,5 @@ dist/
 .wrangler/
 .local/
 *.sqlite*
+repbish-store.zip
+.claude/

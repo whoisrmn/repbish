@@ -17,7 +17,7 @@ The default URL is `http://127.0.0.1:4317/`. The admin is at `/admin`. The previ
 ## Catalog and looks
 
 - For each product, enter the source brand, product name, description, and category. Add one variant for each size and color, with an integer MNT price and stock count. Published products require a main image. For the rail, upload a transparent image with the whole hanger in view. A second front-facing photo is optional and appears on hover or keyboard focus.
-- To publish a look, upload its outfit image, select one product at a time, and click the image to place the pin. Pin placement is relative to the original image. A published look displays links to its published products.
+- To publish a look, upload a full-body, head-to-toe photo of the model with a transparent background (PNG or WebP, portrait). The storefront lines looks up side by side on white, so photos with a background or a landscape frame look out of place; the admin warns about both. Then select one product at a time and click the image to place the pin. Pin placement is relative to the original image. A published look displays links to its published products.
 - The Orders tab shows customer delivery details, payment status, and the items purchased. Mark a paid order shipped and enter a tracking reference if available.
 
 ## Hosting and payments

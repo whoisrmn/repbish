@@ -55,10 +55,34 @@ function uploadField(name, key, label) {
   return '<label>' + label + '<input name="' + name + '" type="file" accept="image/webp,image/jpeg,image/png"></label><img class="admin-photo" data-preview="' +
     name + '" alt="' + label + '"' + (key ? ' src="' + esc(media(key)) + '"' : ' hidden') + '>';
 }
-function bindImage(form, name, onSaved) {
+// Checks a Try the Look photo before upload: the storefront lines looks up side by side on white,
+// so it needs a see-through background and an upright (portrait) full-body frame.
+async function inspectCutout(file) {
+  const image = await createImageBitmap(file);
+  try {
+    const size = 64;
+    const canvas = document.createElement("canvas");
+    canvas.width = canvas.height = size;
+    const context = canvas.getContext("2d", { willReadFrequently:true });
+    context.drawImage(image, 0, 0, size, size);
+    const { data } = context.getImageData(0, 0, size, size);
+    let edge = 0, clear = 0;
+    for (let y = 0; y < size; y++) for (let x = 0; x < size; x++) {
+      if (x > 1 && y > 1 && x < size - 2 && y < size - 2) continue;
+      edge++;
+      if (data[(y * size + x) * 4 + 3] < 16) clear++;
+    }
+    const problems = [];
+    if (clear / edge < .6) problems.push("дэвсгэртэй байна — дэвсгэргүй (тунгалаг) PNG эсвэл WebP оруулна уу");
+    if (image.width >= image.height) problems.push("хэвтээ байна — хүн толгойноос хөл хүртэл багтсан босоо зураг оруулна уу");
+    return problems;
+  } finally { image.close(); }
+}
+function bindImage(form, name, onSaved, check) {
   const input = form.elements[name];
   input.addEventListener("change", async () => {
     if (!input.files[0]) return;
+    if (check) await check(input.files[0]);
     form.querySelector("button[type=submit]").disabled = true;
     const prior = form.dataset.uploads ?? "0";
     form.dataset.uploads = String(Number(prior) + 1);
@@ -139,10 +163,16 @@ function editLook(item = {}) {
   const draft = editingLook;
   $("#look-editor").innerHTML = '<form id="look-editor-form" class="form-grid"><h2>Try the Look</h2>' +
     '<label>Хослолын нэр<input name="title" maxlength="100" required value="' + esc(item.title) + '"></label>' +
-    '<label>Хослолын зураг<input name="look_image" type="file" accept="image/webp,image/jpeg,image/png"></label>' +
+    '<label>Хослолын зураг — бүтэн биетэй, дэвсгэргүй<input name="look_image" type="file" accept="image/png,image/webp,image/jpeg"></label>' +
+    '<div class="look-guide"><p>Дэлгүүрт хослолууд цагаан дэвсгэр дээр зэрэгцэн харагдана. Хамгийн гоё харагдахын тулд:</p><ul>' +
+    '<li>Загвар өмсөгчийн <strong>толгойноос хөл хүртэл</strong> бүтэн харагдах босоо зураг</li>' +
+    '<li><strong>Дэвсгэргүй (тунгалаг)</strong> PNG эсвэл WebP — JPEG дэвсгэргүй байж чадахгүй</li>' +
+    '<li>Хүн голдоо, хөл нь зургийн доод ирмэгт ойрхон, дээр доор илүү зай бага</li>' +
+    '<li>Бүх хослолд ижил зай, ижил гэрэлтүүлэг — тэгвэл эгнээ жигд харагдана</li></ul></div>' +
+    '<p id="look-check" class="look-check" role="status" hidden></p>' +
     '<label>Цэг дээр харуулах бүтээгдэхүүн<select name="product">' + catalog.products.map(product =>
       '<option value="' + esc(product.id) + '">' + esc(product.brand + " · " + product.title) + '</option>').join("") + '</select></label>' +
-    '<p class="muted">Бүтээгдэхүүнээ сонгоод зураг дээр байрлалыг нь дарна уу.</p><div><div class="pin-target" id="pin-image"></div></div>' +
+    '<p class="muted">Бүтээгдэхүүнээ сонгоод зураг дээр байрлалыг нь дарна уу. Шатрын хөлөг шиг нүд харагдаж байвал дэвсгэр нь тунгалаг байна.</p><div><div class="pin-target" id="pin-image"></div></div>' +
     '<ol id="pin-list"></ol><label class="inline"><input name="active" type="checkbox"' + (item.active ? " checked" : "") +
     '>Дэлгүүрт харуулах</label><button type="submit" class="primary">Хадгалах</button></form>';
   const form = $("#look-editor-form");
@@ -151,6 +181,13 @@ function editLook(item = {}) {
     draft.image = key;
     draft.pins = [];
     showPinEditor(form, draft);
+  }, async file => {
+    const note = $("#look-check");
+    const problems = await inspectCutout(file).catch(() => []);
+    note.hidden = false;
+    note.classList.toggle("ok", !problems.length);
+    note.textContent = problems.length ? "Анхаар: энэ зураг " + problems.join("; ") + ". Хадгалж болно, гэхдээ дэлгүүрт жигд харагдахгүй." :
+      "Зураг тохирч байна: дэвсгэргүй, босоо.";
   });
   $("#pin-image").addEventListener("click", event => {
     const product = form.elements.product.value;

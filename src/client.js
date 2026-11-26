@@ -20,13 +20,44 @@ const demos = [
   ["trousers","Utility Trousers","bottoms",79900,"Charcoal","hanger-TROUSERS"],
   ["cap","Washed Cap","accessories",29900,"Washed Black","hanger-CAP"]
 ].map(([id,title,category,price,color,image]) => ({
-  id,title,category,image,brand:"Жишээ бүтээгдэхүүн",description:"Өлгүүрийн харагдацыг үзүүлэх жишээ.",
+  id,title,category,image,brand:"",description:"",
   demo:true,variants:[{ id, price, color, size:"M", stock:0 }]
 }));
-const demoLook = {
-  title:"Улаанбаатарын өдөр тутам", image:"look", demo:true,
-  pins:[{ product:"hoodie", x:26, y:45 }, { product:"trousers", x:32, y:82 }]
-};
+// Placeholder people for the sample looks: flat illustrated figures (viewBox 200×520) wearing the sample pieces.
+// Real looks use a full-body photo with a transparent background uploaded in the admin.
+const tones = { hoodie:"#5a3a48", tee:"#e6e0d3", trousers:"#3f4042", denim:"#6f86a2", "light-denim":"#a3b3c4" };
+function figure({ skin, hair, top, pants, cap }) {
+  const color = tones[top];
+  const sleeveL = top === "tee" ? "M62 98 L44 112 L39 152 L57 154 L60 122 Z" : "M62 98 L44 112 L34 230 L50 232 L58 140 Z";
+  const sleeveR = top === "tee" ? "M138 98 L156 112 L161 152 L143 154 L140 122 Z" : "M138 98 L156 112 L166 230 L150 232 L142 140 Z";
+  const svg = '<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 200 520">' +
+    '<path d="M58 244 L142 244 L152 472 L108 472 L100 300 L92 472 L48 472 Z" fill="' + tones[pants] + '"/>' +
+    '<path d="M100 300 L100 470" stroke="#000" stroke-opacity=".12"/>' +
+    '<ellipse cx="72" cy="478" rx="27" ry="9" fill="#f2f2f0" stroke="#cfcfcf"/><ellipse cx="128" cy="478" rx="27" ry="9" fill="#f2f2f0" stroke="#cfcfcf"/>' +
+    '<path d="M62 98 L44 112 L34 230 L50 232 L58 140 Z M138 98 L156 112 L166 230 L150 232 L142 140 Z" fill="' + skin + '"/>' +
+    '<circle cx="42" cy="240" r="9" fill="' + skin + '"/><circle cx="158" cy="240" r="9" fill="' + skin + '"/>' +
+    '<path d="' + sleeveL + '" fill="' + color + '"/><path d="' + sleeveR + '" fill="' + color + '"/>' +
+    '<rect x="91" y="72" width="18" height="22" fill="' + skin + '"/>' +
+    '<path d="M62 98 Q100 86 138 98 L150 122 L146 254 L54 254 L50 122 Z" fill="' + color + '"/>' +
+    '<path d="M62 98 L58 140 M138 98 L142 140" stroke="#000" stroke-opacity=".1"/>' +
+    (top === "hoodie" ? '<path d="M72 96 Q100 72 128 96 Q100 112 72 96 Z" fill="#000" fill-opacity=".18"/><path d="M72 190 L128 190 L122 228 L78 228 Z" fill="#000" fill-opacity=".08"/>' :
+      '<path d="M86 92 Q100 104 114 92" stroke="#000" stroke-opacity=".15" fill="none"/>') +
+    '<circle cx="100" cy="54" r="23" fill="' + skin + '"/>' +
+    (cap ? '<path d="M76 50 Q77 24 100 25 Q124 24 124 50 Z" fill="#3a3a3a"/><path d="M100 46 L140 49 Q141 53 100 53 Z" fill="#2c2c2c"/>' :
+      '<path d="M77 54 Q76 25 100 26 Q125 25 123 54 Q118 37 100 37 Q83 37 77 54 Z" fill="' + hair + '"/>') +
+    '</svg>';
+  return "data:image/svg+xml," + encodeURIComponent(svg);
+}
+const pin = { hoodie:[50,30], tee:[50,28], trousers:[38,70], cap:[51,6] };
+const demoLooks = [
+  ["Өдөр тутам", { skin:"#c99a78", hair:"#2a1d16", top:"hoodie", pants:"trousers", cap:true }, ["hoodie","trousers","cap"]],
+  ["Хотын алхалт", { skin:"#8d5a3b", hair:"#141414", top:"tee", pants:"trousers" }, ["tee","trousers"]],
+  ["Амралтын өдөр", { skin:"#e2b896", hair:"#4a3020", top:"hoodie", pants:"denim" }, ["hoodie"]],
+  ["Энгийн", { skin:"#b07a55", hair:"#111", top:"tee", pants:"light-denim", cap:true }, ["tee","cap"]],
+  ["Орой", { skin:"#d6a684", hair:"#2b2b2b", top:"hoodie", pants:"trousers" }, ["hoodie","trousers"]]
+].map(([title, look, items]) => ({
+  title, demo:true, src:figure(look), pins:items.map(product => ({ product, x:pin[product][0], y:pin[product][1] }))
+}));
 function loadCart() {
   try {
     const data = JSON.parse(localStorage.getItem("repbish-cart-v1") ?? "[]");
@@ -52,10 +83,11 @@ function saveCart() {
 function garment(product, index) {
   const src = esc(media(product.image, product.demo));
   const qty = product.variants.reduce((sum, variant) => sum + variant.stock, 0);
-  const tag = product.demo || qty ? money(priceOf(product)) : "Дууссан";
+  const available = product.demo || qty;
+  const tag = available ? money(priceOf(product)) : "Дууссан";
   return '<button type="button" class="garment" data-product="' + esc(product.id) + '" data-category="' + esc(product.category) +
     '"><span class="garment-photo"><img class="garment-regular" alt="" decoding="async"' + (index >= 5 ? ' loading="lazy"' : '') + ' src="' + src +
-    '"><span class="tag">' + tag + '</span></span><span class="garment-label">' + esc(product.title) +
+    '"><span class="tag' + (available ? '' : ' sold') + '">' + tag + '</span></span><span class="garment-label">' + esc(product.title) +
     '</span><span class="garment-brand">' + esc(product.brand) + '</span></button>';
 }
 function showRail() {
@@ -85,24 +117,100 @@ function showRail() {
     card.addEventListener("focus", loadFront, { once:true });
   }
 }
-function showLook() {
-  const look = looks[lookIndex];
-  $("#look-navigation").hidden = looks.length < 2;
-  $("#look-count").textContent = (lookIndex + 1) + " / " + looks.length;
-  if (!look) {
-    $("#look-content").textContent = "Шинэ хослол удахгүй нэмэгдэнэ.";
+const stage = $("#look-stage");
+const steps = $("#look-steps");
+const panel = $("#look-panel");
+let lookPaused = matchMedia("(prefers-reduced-motion: reduce)").matches;
+function lookPieces(look) {
+  const pins = look.pins.map(pin => ({ ...pin, item:products.find(product => product.id === pin.product) })).filter(pin => pin.item);
+  return { pins, pieces:[...new Set(pins.map(pin => pin.item))] };
+}
+// Builds every figure once; showLook() only moves them.
+function renderLooks() {
+  if (!looks.length) {
+    stage.innerHTML = '<p class="look-empty">Шинэ хослол удахгүй нэмэгдэнэ.</p>';
+    panel.hidden = true;
     return;
   }
-  const pins = look.pins.map(pin => ({ ...pin, item:products.find(product => product.id === pin.product) })).filter(pin => pin.item);
-  const dots = pins.map(({ x,y,item }, index) =>
-    '<button type="button" class="hotspot" style="left:' + x + '%;top:' + y + '%" data-product="' + esc(item.id) +
-    '" aria-label="' + esc(item.title) + '">' + (index + 1) + '</button>').join("");
-  const list = [...new Set(pins.map(pin => pin.item))].map(item =>
-    '<button type="button" class="look-item" data-product="' + esc(item.id) + '"><span>' + esc(item.title) +
-    '</span><span>' + money(priceOf(item)) + '</span></button>').join("");
-  $("#look-content").innerHTML = '<div class="look-layout"><div class="look-photo"><img loading="lazy" decoding="async" alt="' + esc(look.title) +
-    '" src="' + esc(media(look.image, look.demo)) + '">' + dots + '</div><div class="look-products"><h3>' + esc(look.title) +
-    '</h3>' + list + '</div></div>';
+  stage.innerHTML = looks.map((look, index) => {
+    const dots = lookPieces(look).pins.map(({ x,y,item }, number) =>
+      '<button type="button" class="hotspot" style="left:' + x + '%;top:' + y + '%" data-product="' + esc(item.id) +
+      '" aria-label="' + esc(item.title) + '">' + (number + 1) + '</button>').join("");
+    return '<div class="look-figure" data-look="' + index + '" role="group" aria-roledescription="slide" aria-label="' + esc(look.title) +
+      '"><img alt="' + esc(look.title) + '" decoding="async" draggable="false"' + (index > 2 ? ' loading="lazy"' : '') +
+      ' src="' + esc(look.src ?? media(look.image)) + '">' + dots + '</div>';
+  }).join("");
+  steps.innerHTML = looks.map((look, index) =>
+    '<button type="button" class="look-step" data-step="' + index + '" aria-label="' + esc(look.title) + '"><span class="look-step-bar"><span></span></span>' +
+    '<span class="look-step-label"><span>' + String(index + 1).padStart(2, "0") + '</span><span class="look-step-title">' + esc(look.title) + '</span></span></button>').join("");
+  $("#look-controls").hidden = looks.length < 2;
+  setPaused(lookPaused);
+  showLook();
+}
+function showLook() {
+  if (!looks.length) return;
+  const count = looks.length;
+  for (const figure of stage.children) {
+    let offset = Number(figure.dataset.look) - lookIndex;
+    if (count > 2) offset = ((offset % count) + count + Math.floor(count / 2)) % count - Math.floor(count / 2);
+    const distance = Math.abs(offset);
+    figure.style.setProperty("--o", offset);
+    figure.style.setProperty("--a", Math.min(distance, 4));
+    figure.classList.toggle("active", offset === 0);
+    figure.classList.toggle("far", distance > 3);
+    figure.setAttribute("aria-hidden", String(offset !== 0));
+    for (const dot of figure.querySelectorAll(".hotspot")) dot.tabIndex = offset === 0 ? 0 : -1;
+  }
+  for (const step of steps.children) {
+    const active = Number(step.dataset.step) === lookIndex;
+    step.classList.remove("active");
+    if (active) { void step.offsetWidth; step.classList.add("active"); }
+    step.toggleAttribute("aria-current", active);
+  }
+  showLookPanel(looks[lookIndex]);
+}
+function showLookPanel(look) {
+  const { pins, pieces } = lookPieces(look);
+  panel.hidden = false;
+  const rows = pieces.map(item => {
+    const options = item.variants.map(variant =>
+      '<option value="' + esc(variant.id) + '"' + (!variant.stock && !item.demo ? " disabled" : "") + '>' + esc(variant.size) + ' / ' + esc(variant.color) +
+      (!variant.stock && !item.demo ? " · Дууссан" : "") + '</option>').join("");
+    return '<div class="look-row"><span class="look-num">' + (pins.findIndex(pin => pin.item === item) + 1) + '</span>' +
+      '<button type="button" class="look-thumb" data-product="' + esc(item.id) + '" aria-label="' + esc(item.title) + '"><img alt="" loading="lazy" decoding="async" src="' +
+      esc(media(item.image, item.demo)) + '"></button><div class="look-text">' + (item.brand ? '<small>' + esc(item.brand) + '</small>' : '') +
+      '<button type="button" class="look-name" data-product="' + esc(item.id) + '">' + esc(item.title) + '</button><span class="look-price"></span>' +
+      '<select class="look-size" data-item="' + esc(item.id) + '" aria-label="Хэмжээ, өнгө: ' + esc(item.title) + '">' + options + '</select></div>' +
+      '<button type="button" class="look-plus" data-product="' + esc(item.id) + '" aria-label="Дэлгэрэнгүй: ' + esc(item.title) + '">+</button></div>';
+  }).join("");
+  const buyable = pieces.length && pieces.every(item => !item.demo && item.variants.some(variant => variant.stock));
+  panel.innerHTML = '<div class="panel-head"><h3>Энэ хослолд</h3><span>' + pieces.length + ' ширхэг</span></div>' + rows +
+    '<div class="panel-foot"><div class="panel-total"><span>Бүтэн хослол</span><strong id="look-total"></strong></div>' +
+    '<button type="button" class="primary" id="add-look"' + (buyable ? '' : ' disabled') + '>Бүтэн хослолыг сагслах →</button></div>';
+  updateLookTotal();
+}
+function lookSelection() {
+  return [...panel.querySelectorAll(".look-size")].map(select => {
+    const product = products.find(item => item.id === select.dataset.item);
+    return { product, select, variant:product.variants.find(variant => variant.id === select.value) };
+  });
+}
+function updateLookTotal() {
+  let total = 0;
+  for (const { select, variant } of lookSelection()) {
+    total += variant?.price ?? 0;
+    select.closest(".look-text").querySelector(".look-price").textContent = money(variant?.price ?? 0);
+  }
+  const node = $("#look-total");
+  if (node) node.textContent = money(total);
+}
+function setPaused(paused) {
+  lookPaused = paused;
+  steps.classList.toggle("paused", paused);
+  const button = $("#pause-look");
+  button.setAttribute("aria-pressed", String(paused));
+  button.textContent = paused ? "▶" : "❚❚";
+  button.setAttribute("aria-label", paused ? "Тоглуулах" : "Зогсоох");
 }
 function details(product) {
   const options = product.variants.map(variant =>
@@ -114,7 +222,7 @@ function details(product) {
     esc(media(product.front_image || product.image, product.demo)) + '"><div><p class="overline">' + esc(product.brand) +
     '</p><p>' + esc(product.description) + '</p><form id="product-options" class="form-grid"><label>Хэмжээ, өнгө<select name="variant"' +
     (!purchasable && !product.demo ? " disabled" : "") + '>' + options + '</select></label><strong id="variant-price" class="detail-price"></strong>' +
-    (product.demo ? '<p class="muted">Дэлгүүрийн загварыг үзүүлэх жишээ.</p>' : '<button class="primary" type="submit"' +
+    (product.demo ? '' : '<button class="primary" type="submit"' +
       (!purchasable ? ' disabled>Дууссан' : '>Сагсанд нэмэх') + '</button>') + '</form></div></div>';
   const form = $("#product-options");
   const select = form.elements.variant;
@@ -180,15 +288,52 @@ $("#filters").addEventListener("click", event => {
   for (const item of rail.children) item.hidden = filter.dataset.category !== "all" && filter.dataset.category !== item.dataset.category;
   rail.scrollLeft = 0;
 });
-for (const container of [rail,$("#look-content")]) {
+let dragged = false;
+for (const container of [rail, stage, panel]) {
   container.addEventListener("click", event => {
+    if (dragged) return;
     const item = event.target.closest("[data-product]");
-    if (item) details(products.find(product => product.id === item.dataset.product));
+    if (item) { details(products.find(product => product.id === item.dataset.product)); return; }
+    const figure = event.target.closest(".look-figure:not(.active)");
+    if (figure) { lookIndex = Number(figure.dataset.look); showLook(); }
   });
 }
 function changeLook(direction) { lookIndex = (lookIndex + direction + looks.length) % looks.length; showLook(); }
 $("#previous-look").addEventListener("click", () => changeLook(-1));
 $("#next-look").addEventListener("click", () => changeLook(1));
+$("#pause-look").addEventListener("click", () => setPaused(!lookPaused));
+steps.addEventListener("click", event => {
+  const step = event.target.closest("[data-step]");
+  if (step) { lookIndex = Number(step.dataset.step); showLook(); }
+});
+// the active step's bar fills over a few seconds, then the next look comes in
+steps.addEventListener("animationend", event => { if (event.target.closest(".look-step.active")) changeLook(1); });
+let dragStart = null;
+stage.addEventListener("pointerdown", event => { dragStart = event.clientX; dragged = false; });
+stage.addEventListener("pointermove", event => { if (dragStart !== null && Math.abs(event.clientX - dragStart) > 8) dragged = true; });
+addEventListener("pointerup", event => {
+  if (dragStart === null) return;
+  const distance = event.clientX - dragStart;
+  dragStart = null;
+  if (Math.abs(distance) > 50 && looks.length > 1) changeLook(distance < 0 ? 1 : -1);
+  setTimeout(() => { dragged = false; });
+});
+stage.addEventListener("keydown", event => {
+  if (event.key === "ArrowLeft") changeLook(-1);
+  if (event.key === "ArrowRight") changeLook(1);
+});
+panel.addEventListener("change", event => { if (event.target.matches(".look-size")) updateLookTotal(); });
+panel.addEventListener("click", event => {
+  if (event.target.id !== "add-look") return;
+  for (const { product, variant } of lookSelection()) {
+    if (!variant?.stock || product.demo) continue;
+    const count = cart.get(variant.id) ?? 0;
+    if (count < Math.min(variant.stock, 10)) cart.set(variant.id, count + 1);
+  }
+  saveCart();
+  openBag();
+  $("#announcement").textContent = "Хослол сагсанд нэмэгдлээ.";
+});
 $("#bag-button").addEventListener("click", openBag);
 $("#bag-content").addEventListener("click", event => {
   const change = event.target.closest("[data-change]");
@@ -285,13 +430,13 @@ async function initialize() {
     regions = data.regions;
     checkout = data.checkout;
     products = data.products.length ? data.products : demos;
-    looks = data.products.length ? data.looks : [demoLook];
-    $("#catalog-note").textContent = data.products.length ? "" : "Дэлгүүрийн танилцуулга · жишээ бараа";
+    looks = data.products.length ? data.looks : demoLooks;
+    $("#catalog-note").textContent = "";
     const ids = new Set(data.products.flatMap(product => product.variants.map(variant => variant.id)));
     for (const id of cart.keys()) if (!ids.has(id)) cart.delete(id);
     saveCart();
     showRail();
-    showLook();
+    renderLooks();
   } catch {
     $("#catalog-note").textContent = "Цуглуулгыг ачаалж чадсангүй. Хуудсаа шинэчилнэ үү.";
     $("#looks").hidden = true;
