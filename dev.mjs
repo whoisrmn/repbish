@@ -6,7 +6,6 @@ import { Readable } from "node:stream";
 import { localDb } from "./local-db.mjs";
 
 const paths = {
-  "/": ["shop.html","text/html; charset=utf-8"],
   "/style.css": ["store.css","text/css; charset=utf-8"],
   "/shop.js": ["client.js","text/javascript; charset=utf-8"],
   "/admin": ["admin.html","text/html; charset=utf-8"],
@@ -31,7 +30,7 @@ const server = createServer(async (incoming, outgoing) => {
   try {
     const url = new URL(incoming.url, origin);
     if (incoming.method === "GET") {
-      const file = paths[url.pathname] ?? (url.pathname.startsWith("/order/") ? paths["/"] : null);
+      const file = paths[url.pathname];
       if (file) {
         const source = await readFile(new URL("./src/" + file[0], import.meta.url));
         outgoing.writeHead(200, { "Content-Type":file[1], "Cache-Control":"no-store" }).end(source);

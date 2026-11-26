@@ -147,3 +147,22 @@ test("store information pages are served with their own titles", async () => {
   }
   assert.equal((await call(env, "/info/unknown")).status, 404);
 });
+
+test("home page, icon, robots and sitemap support link previews and search", async () => {
+  const env = environment();
+  const empty = await (await call(env, "/")).text();
+  assert.match(empty, /<meta property="og:title" content="Repbish">/);
+  assert.doesNotMatch(empty, /og:image/);
+  await setupOwner(env);
+  const product = await newProduct(env);
+  const home = await (await call(env, "/")).text();
+  assert.match(home, /<link rel="canonical" href="https:\/\/repbish\.test\/">/);
+  assert.match(home, new RegExp('<meta property="og:image" content="https://repbish\.test/media/' + product.image.replace(".", "\.") + '">'));
+  assert.match(await (await call(env, "/order/00000000-0000-4000-8000-000000000000")).text(), /<meta name="robots" content="noindex">/);
+  const icon = await call(env, "/favicon.svg");
+  assert.equal(icon.headers.get("content-type"), "image/svg+xml");
+  assert.match(await (await call(env, "/robots.txt")).text(), /Disallow: \/admin\nDisallow: \/api\/[\s\S]*Sitemap: https:\/\/repbish\.test\/sitemap\.xml/);
+  const map = await (await call(env, "/sitemap.xml")).text();
+  assert.match(map, /<loc>https:\/\/repbish\.test\/info\/returns<\/loc>/);
+  assert.match(map, new RegExp("<loc>https://repbish\.test/products/" + product.id + "</loc>"));
+});

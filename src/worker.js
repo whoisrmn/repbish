@@ -298,17 +298,47 @@ const escapeHtml = value => String(value ?? "").replace(/[&<>"']/g, char => ({ "
 const productPath = /^[a-z0-9-]{1,64}$/;
 // store information pages; their text lives in client.js
 const infoTitles = { delivery: "Хүргэлт", returns: "Буцаалт, солилт", privacy: "Нууцлал", contact: "Холбоо барих" };
-// Product pages are the storefront page with the product's own title, description and share-preview tags
-// filled in on the server, so link previews (Facebook, Messenger, Telegram) and search engines see them without JavaScript.
+const siteDescription = "Оригинал брэндийн хувцас, боломжийн үнээр. Монгол даяар үнэгүй хүргэлт.";
+const html = "text/html; charset=utf-8";
+
+// Every storefront URL serves the same page; the server fills in that URL's title, description and
+// share-preview tags so link previews (Facebook, Messenger, Telegram) and search engines see them without JavaScript.
+function storePage({ title, description = siteDescription, url, image, type = "website", extra = [], robots }) {
+  const tags = [
+    robots && '<meta name="robots" content="' + robots + '">',
+    url && '<link rel="canonical" href="' + escapeHtml(url) + '">',
+    '<meta property="og:type" content="' + type + '">', '<meta property="og:site_name" content="Repbish">',
+    '<meta property="og:locale" content="mn_MN">',
+    '<meta property="og:title" content="' + escapeHtml(title) + '">',
+    '<meta property="og:description" content="' + escapeHtml(description) + '">',
+    url && '<meta property="og:url" content="' + escapeHtml(url) + '">',
+    image && '<meta property="og:image" content="' + escapeHtml(image) + '">',
+    image && '<meta property="og:image:alt" content="' + escapeHtml(title) + '">',
+    '<meta name="twitter:card" content="' + (image ? "summary_large_image" : "summary") + '">',
+    ...extra
+  ].filter(Boolean).join("\n");
+  return assets.shopHtml
+    .replace(/<title>[^<]*<\/title>/, "<title>" + escapeHtml(title === "Repbish" ? "Repbish — оригинал брэндийн хувцас" : title + " | Repbish") + "</title>")
+    .replace(/<meta name="description" content="[^"]*">/, '<meta name="description" content="' + escapeHtml(description) + '">')
+    .replace("</head>", tags + "\n</head>");
+}
+const mediaUrl = (origin, key) => origin + "/media/" + encodeURIComponent(key);
+// the home page previews with the newest published product's photo
+async function homePage(env, origin) {
+  const latest = await first(env, "SELECT p.image, p.front_image FROM products p WHERE p.active=1 AND (p.front_image<>'' OR p.image<>'') " +
+    "AND EXISTS (SELECT 1 FROM variants v WHERE v.product_id=p.id AND v.active=1) ORDER BY p.rowid DESC LIMIT 1");
+  return response(storePage({ title: "Repbish", url: origin + "/",
+    image: latest && mediaUrl(origin, latest.front_image || latest.image) }), html, 200, "public, max-age=60");
+}
+function infoPage(slug, origin) {
+  return response(storePage({ title: infoTitles[slug], url: origin + "/info/" + slug }), html, 200, "public, max-age=300");
+}
 async function productPage(env, id, origin) {
   const product = uuid.test(id) ? await first(env, "SELECT * FROM products WHERE id=? AND active=1", id) : null;
   const offer = product && await first(env, "SELECT MIN(price) AS price, SUM(stock) AS stock, COUNT(*) AS count FROM variants WHERE product_id=? AND active=1", id);
-  if (!product || !offer?.count) {
-    return response(assets.shopHtml.replace("<head>", '<head>\n<meta name="robots" content="noindex">'), "text/html; charset=utf-8", 404);
-  }
+  if (!product || !offer?.count) return response(storePage({ title: "Бараа олдсонгүй", robots: "noindex" }), html, 404);
   const url = origin + "/products/" + product.id;
-  const image = origin + "/media/" + encodeURIComponent(product.front_image || product.image);
-  const title = product.title + " — " + product.brand + " | Repbish";
+  const image = mediaUrl(origin, product.front_image || product.image);
   const description = (product.description.replace(/\s+/g, " ").trim() || product.brand + " " + product.title + ". Монгол даяар үнэгүй хүргэлт.").slice(0, 200);
   const data = {
     "@context": "https://schema.org", "@type": "Product", name: product.title, brand: { "@type": "Brand", name: product.brand },
@@ -316,21 +346,24 @@ async function productPage(env, id, origin) {
     offers: { "@type": "Offer", price: offer.price, priceCurrency: "MNT", url,
       availability: offer.stock > 0 ? "https://schema.org/InStock" : "https://schema.org/OutOfStock" }
   };
-  const tags = [
-    '<link rel="canonical" href="' + escapeHtml(url) + '">',
-    '<meta property="og:type" content="product">', '<meta property="og:site_name" content="Repbish">',
-    '<meta property="og:title" content="' + escapeHtml(product.title + " — " + product.brand) + '">',
-    '<meta property="og:description" content="' + escapeHtml(description) + '">',
-    '<meta property="og:url" content="' + escapeHtml(url) + '">', '<meta property="og:image" content="' + escapeHtml(image) + '">',
+  return response(storePage({ title: product.title + " — " + product.brand, description, url, image, type: "product", extra: [
     '<meta property="product:price:amount" content="' + offer.price + '">', '<meta property="product:price:currency" content="MNT">',
-    '<meta name="twitter:card" content="summary_large_image">',
     '<script type="application/ld+json">' + JSON.stringify(data).replace(/</g, "\\u003c") + '</script>'
-  ].join("\n");
-  const html = assets.shopHtml
-    .replace(/<title>[^<]*<\/title>/, "<title>" + escapeHtml(title) + "</title>")
-    .replace(/<meta name="description" content="[^"]*">/, '<meta name="description" content="' + escapeHtml(description) + '">')
-    .replace("</head>", tags + "\n</head>");
-  return response(html, "text/html; charset=utf-8", 200, "public, max-age=60");
+  ] }), html, 200, "public, max-age=60");
+}
+
+// site icon: a black square with the lowercase "r" of the wordmark
+const favicon = '<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 64 64"><rect width="64" height="64" rx="14" fill="#111"/>' +
+  '<path d="M22 50V22h7.4v4.6c1.9-3.5 4.9-5.4 9.2-5.4h2.4v7.2h-2.6c-5.4 0-9 2.6-9 9V50z" fill="#fff"/></svg>';
+function robots(origin) {
+  return "User-agent: *\nAllow: /\nDisallow: /admin\nDisallow: /api/\nDisallow: /order/\n\nSitemap: " + origin + "/sitemap.xml\n";
+}
+async function sitemap(env, origin) {
+  const products = await rows(env, "SELECT p.id FROM products p WHERE p.active=1 AND EXISTS " +
+    "(SELECT 1 FROM variants v WHERE v.product_id=p.id AND v.active=1) ORDER BY p.rowid DESC");
+  const urls = [origin + "/", ...Object.keys(infoTitles).map(slug => origin + "/info/" + slug), ...products.map(item => origin + "/products/" + item.id)];
+  return '<?xml version="1.0" encoding="UTF-8"?>\n<urlset xmlns="http://www.sitemaps.org/schemas/sitemap/0.9">\n' +
+    urls.map(url => "  <url><loc>" + escapeHtml(url) + "</loc></url>").join("\n") + "\n</urlset>\n";
 }
 async function adminOrders(env) {
   const orders = await rows(env, "SELECT id,created,status,amount,buyer,phone,province,address,tracking FROM orders ORDER BY created DESC LIMIT 100");
@@ -346,13 +379,14 @@ export default {
       const path = url.pathname;
       const method = request.method;
       const route = path.split("/");
-      if (method === "GET" && (path === "/" || (route.length === 3 && route[1] === "order" && uuid.test(route[2])))) {
-        return response(assets.shopHtml, "text/html; charset=utf-8");
+      if (method === "GET" && path === "/") return await homePage(env, url.origin);
+      if (method === "GET" && route.length === 3 && route[1] === "order" && uuid.test(route[2])) {
+        return response(storePage({ title: "Захиалгын төлөв", robots: "noindex" }), html);
       }
-      if (method === "GET" && route.length === 3 && route[1] === "info" && Object.hasOwn(infoTitles, route[2])) {
-        return response(assets.shopHtml.replace(/<title>[^<]*<\/title>/, "<title>" + infoTitles[route[2]] + " | Repbish</title>"),
-          "text/html; charset=utf-8", 200, "public, max-age=300");
-      }
+      if (method === "GET" && path === "/favicon.svg") return response(favicon, "image/svg+xml", 200, "public, max-age=86400");
+      if (method === "GET" && path === "/robots.txt") return response(robots(url.origin), "text/plain; charset=utf-8", 200, "public, max-age=3600");
+      if (method === "GET" && path === "/sitemap.xml") return response(await sitemap(env, url.origin), "application/xml; charset=utf-8", 200, "public, max-age=3600");
+      if (method === "GET" && route.length === 3 && route[1] === "info" && Object.hasOwn(infoTitles, route[2])) return infoPage(route[2], url.origin);
       if (method === "GET" && route.length === 3 && route[1] === "products" && productPath.test(route[2])) {
         return await productPage(env, route[2], url.origin);
       }
