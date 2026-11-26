@@ -66,6 +66,8 @@ function loadCart() {
 }
 const cart = loadCart();
 const priceOf = product => Math.min(...product.variants.map(variant => variant.price));
+// sample looks can point at sample pieces even after real products exist
+const findProduct = id => products.find(item => item.id === id) ?? demos.find(item => item.id === id);
 async function api(path, options) {
   const response = await fetch(path, options);
   const data = await response.json();
@@ -132,7 +134,7 @@ const steps = $("#look-steps");
 const panel = $("#look-panel");
 let lookPaused = matchMedia("(prefers-reduced-motion: reduce)").matches;
 function lookPieces(look) {
-  const pins = look.pins.map(pin => ({ ...pin, item:products.find(product => product.id === pin.product) })).filter(pin => pin.item);
+  const pins = look.pins.map(pin => ({ ...pin, item:findProduct(pin.product) })).filter(pin => pin.item);
   return { pins, pieces:[...new Set(pins.map(pin => pin.item))] };
 }
 // Builds every figure once; showLook() only moves them.
@@ -201,7 +203,7 @@ function showLookPanel(look) {
 }
 function lookSelection() {
   return [...panel.querySelectorAll(".look-size")].map(select => {
-    const product = products.find(item => item.id === select.dataset.item);
+    const product = findProduct(select.dataset.item);
     return { product, select, variant:product.variants.find(variant => variant.id === select.value) };
   });
 }
@@ -394,7 +396,7 @@ for (const container of [rail, stage, panel]) {
   container.addEventListener("click", event => {
     if (dragged) return;
     const item = event.target.closest("[data-product]");
-    if (item) { details(products.find(product => product.id === item.dataset.product)); return; }
+    if (item) { details(findProduct(item.dataset.product)); return; }
     const figure = event.target.closest(".look-figure:not(.active)");
     if (figure) { lookIndex = Number(figure.dataset.look); showLook(); }
   });
@@ -531,7 +533,7 @@ async function initialize() {
     regions = data.regions;
     checkout = data.checkout;
     products = data.products.length ? data.products : demos;
-    looks = data.products.length ? data.looks : demoLooks;
+    looks = data.looks.length ? data.looks : demoLooks;
     $("#catalog-note").textContent = "";
     const ids = new Set(data.products.flatMap(product => product.variants.map(variant => variant.id)));
     for (const id of cart.keys()) if (!ids.has(id)) cart.delete(id);
