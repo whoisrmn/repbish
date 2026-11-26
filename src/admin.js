@@ -21,10 +21,37 @@ async function api(path, options) {
 const post = (path, data) => api(path, { method:"POST", headers:{ "Content-Type":"application/json" }, body:JSON.stringify(data) });
 async function refreshCatalog() {
   catalog = await api("catalog");
-  $("#products-list").innerHTML = catalog.products.map(item => '<button class="secondary" type="button" data-id="' + esc(item.id) + '">' +
-    esc(item.brand) + " · " + esc(item.title) + (item.active ? "" : " · Ноорог") + '</button>').join("");
-  $("#looks-list").innerHTML = catalog.looks.map(item => '<button class="secondary" type="button" data-id="' + esc(item.id) + '">' +
-    esc(item.title) + (item.active ? "" : " · Ноорог") + '</button>').join("");
+  const products = catalog.products;
+  $("#products-list").innerHTML = products.length ? products.map((item, index) => {
+    const stock = item.variants.filter(variant => variant.active).reduce((sum, variant) => sum + variant.stock, 0);
+    return listRow(item.id, index, products.length, item.image ? media(item.image) : "", item.title,
+      [item.brand, stock ? stock + " ширхэг" : "Дууссан"], !item.active);
+  }).join("") : '<p class="muted">Бараа алга. «Шинэ бүтээгдэхүүн» дээр дарж эхлээрэй.</p>';
+  $("#looks-list").innerHTML = catalog.looks.length ? catalog.looks.map((item, index) =>
+    listRow(item.id, index, catalog.looks.length, media(item.image), item.title, [item.pins.length + " бараа"], !item.active)).join("") :
+    '<p class="muted">Хослол алга.</p>';
+  for (const id of [editingProduct?.id, editingLook?.id]) if (id) document.querySelector('[data-id="' + id + '"]')?.classList.add("current");
+}
+// one row in the product/look list: photo, name, details, draft badge and move up/down buttons
+function listRow(id, index, count, image, title, details, draft) {
+  return '<div class="admin-row" data-id="' + esc(id) + '"><button type="button" class="admin-row-open" data-open="' + esc(id) + '">' +
+    (image ? '<img alt="" loading="lazy" src="' + esc(image) + '">' : '<span class="admin-row-blank"></span>') +
+    '<span class="admin-row-text"><strong>' + esc(title) + '</strong><small>' + details.filter(Boolean).map(esc).join(" · ") + '</small>' +
+    (draft ? '<span class="badge">Ноорог</span>' : "") + '</span></button><span class="admin-row-move">' +
+    '<button type="button" data-move="-1" aria-label="Дээш: ' + esc(title) + '"' + (index === 0 ? " disabled" : "") + '>↑</button>' +
+    '<button type="button" data-move="1" aria-label="Доош: ' + esc(title) + '"' + (index === count - 1 ? " disabled" : "") + '>↓</button></span></div>';
+}
+async function move(kind, id, direction) {
+  const list = catalog[kind].map(item => item.id);
+  const from = list.indexOf(id), to = from + direction;
+  if (from < 0 || to < 0 || to >= list.length) return;
+  [list[from], list[to]] = [list[to], list[from]];
+  try {
+    await post("reorder", { kind, ids:list });
+    await refreshCatalog();
+    document.querySelector('[data-id="' + id + '"] [data-move="' + direction + '"]:enabled')?.focus();
+    message("Дарааллыг хадгаллаа. Дэлгүүрт дээрээс доош, өлгүүрт зүүнээс баруун тийш ийм дарааллаар харагдана.");
+  } catch (error) { message(error.message, true); }
 }
 async function upload(file) {
   if (!["image/webp","image/jpeg","image/png"].includes(file.type) || file.size > 16_000_000) {
@@ -118,8 +145,27 @@ function editProduct(item = {}) {
     '<small>Тунгалаг дэвсгэртэй, өлгүүр нь бүтэн харагдах зураг тохиромжтой.</small>' +
     '<fieldset><legend>Хэмжээ, өнгө, үлдэгдэл</legend><div id="variant-list">' +
     (item.variants ?? [{}]).map(variantRow).join("") + '</div><button class="secondary" id="add-variant" type="button">Сонголт нэмэх</button></fieldset>' +
-    '<label class="inline"><input name="active" type="checkbox"' + (item.active ? " checked" : "") + '>Дэлгүүрт харуулах</label><button class="primary" type="submit">Хадгалах</button></form>';
+    '<label class="inline"><input name="active" type="checkbox"' + (item.active ? " checked" : "") + '>Дэлгүүрт харуулах</label><button class="primary" type="submit">Хадгалах</button>' +
+    (item.id ? '<div class="admin-actions"><button type="button" class="secondary" id="duplicate-product">Хуулбар үүсгэх</button>' +
+      '<button type="button" class="danger" id="delete-product">Устгах</button></div>' : "") + '</form>';
   const form = $("#product-editor-form");
+  // a copy starts as a new draft with the same photos, details and sizes, and no stock
+  $("#duplicate-product")?.addEventListener("click", () => {
+    editProduct({ title:(item.title + " (хуулбар)").slice(0, 100), brand:item.brand, category:item.category, description:item.description,
+      image:item.image, front_image:item.front_image, active:false,
+      variants:item.variants.map(({ size, color, price }) => ({ size, color, price, stock:0 })) });
+    message("Хуулбар нээгдлээ. Нэр, үлдэгдлээ засаад хадгална уу.");
+  });
+  $("#delete-product")?.addEventListener("click", async event => {
+    if (!confirm("«" + item.title + "»-г бүр мөсөн устгах уу? Үүнийг буцаах боломжгүй. Хослолуудаас ч хасагдана.")) return;
+    event.target.disabled = true;
+    try {
+      await post("delete-product", { id:item.id });
+      await refreshCatalog();
+      editProduct();
+      message("Бараа устгагдлаа.");
+    } catch (error) { message(error.message, true); event.target.disabled = false; }
+  });
   bindImage(form, "hanger", key => { draft.image = key; });
   bindImage(form, "front", key => { draft.front_image = key; });
   $("#add-variant").addEventListener("click", () => {
@@ -174,8 +220,19 @@ function editLook(item = {}) {
       '<option value="' + esc(product.id) + '">' + esc(product.brand + " · " + product.title) + '</option>').join("") + '</select></label>' +
     '<p class="muted">Бүтээгдэхүүнээ сонгоод зураг дээр байрлалыг нь дарна уу. Шатрын хөлөг шиг нүд харагдаж байвал дэвсгэр нь тунгалаг байна.</p><div><div class="pin-target" id="pin-image"></div></div>' +
     '<ol id="pin-list"></ol><label class="inline"><input name="active" type="checkbox"' + (item.active ? " checked" : "") +
-    '>Дэлгүүрт харуулах</label><button type="submit" class="primary">Хадгалах</button></form>';
+    '>Дэлгүүрт харуулах</label><button type="submit" class="primary">Хадгалах</button>' +
+    (item.id ? '<div class="admin-actions"><button type="button" class="danger" id="delete-look">Хослол устгах</button></div>' : "") + '</form>';
   const form = $("#look-editor-form");
+  $("#delete-look")?.addEventListener("click", async event => {
+    if (!confirm("«" + item.title + "» хослолыг бүр мөсөн устгах уу? Үүнийг буцаах боломжгүй. Бараанууд нь хэвээр үлдэнэ.")) return;
+    event.target.disabled = true;
+    try {
+      await post("delete-look", { id:item.id });
+      await refreshCatalog();
+      editLook();
+      message("Хослол устгагдлаа.");
+    } catch (error) { message(error.message, true); event.target.disabled = false; }
+  });
   showPinEditor(form, draft);
   bindImage(form, "look_image", key => {
     draft.image = key;
@@ -242,14 +299,16 @@ for (const button of document.querySelectorAll("[data-panel]")) {
 }
 $("#new-product").addEventListener("click", () => editProduct());
 $("#new-look").addEventListener("click", () => editLook());
-$("#products-list").addEventListener("click", event => {
-  const id = event.target.closest("[data-id]")?.dataset.id;
-  if (id) editProduct(catalog.products.find(item => item.id === id));
-});
-$("#looks-list").addEventListener("click", event => {
-  const id = event.target.closest("[data-id]")?.dataset.id;
-  if (id) editLook(catalog.looks.find(item => item.id === id));
-});
+for (const [kind, open] of [["products", item => editProduct(item)], ["looks", item => editLook(item)]]) {
+  $("#" + kind + "-list").addEventListener("click", event => {
+    const row = event.target.closest("[data-id]");
+    if (!row) return;
+    const moveButton = event.target.closest("[data-move]");
+    if (moveButton) { move(kind, row.dataset.id, Number(moveButton.dataset.move)); return; }
+    open(catalog[kind].find(item => item.id === row.dataset.id));
+    for (const other of $("#" + kind + "-list").querySelectorAll(".admin-row")) other.classList.toggle("current", other === row);
+  });
+}
 $("#refresh-orders").addEventListener("click", showOrders);
 $("#orders-list").addEventListener("submit", async event => {
   event.preventDefault();

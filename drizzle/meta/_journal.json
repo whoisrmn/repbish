@@ -3,6 +3,7 @@
   "dialect": "sqlite",
   "entries": [
     { "idx": 0, "version": "6", "when": 1795667800000, "tag": "0001_store", "breakpoints": true },
-    { "idx": 1, "version": "6", "when": 1795667900000, "tag": "0002_owner_and_reservations", "breakpoints": true }
+    { "idx": 1, "version": "6", "when": 1795667900000, "tag": "0002_owner_and_reservations", "breakpoints": true },
+    { "idx": 2, "version": "6", "when": 1795673000000, "tag": "0003_display_order", "breakpoints": true }
   ]
 }

@@ -86,9 +86,9 @@ function clientOrigin(request, url) {
 
 async function catalog(env, admin = false) {
   const [products, variants, looks] = await Promise.all([
-    rows(env, "SELECT * FROM products" + (admin ? "" : " WHERE active = 1") + " ORDER BY rowid DESC"),
+    rows(env, "SELECT * FROM products" + (admin ? "" : " WHERE active = 1") + " ORDER BY position, rowid DESC"),
     rows(env, "SELECT * FROM variants" + (admin ? "" : " WHERE active = 1") + " ORDER BY rowid"),
-    rows(env, "SELECT * FROM looks" + (admin ? "" : " WHERE active = 1") + " ORDER BY rowid DESC")
+    rows(env, "SELECT * FROM looks" + (admin ? "" : " WHERE active = 1") + " ORDER BY position, rowid DESC")
   ]);
   const byProduct = new Map();
   for (const variant of variants) {
@@ -130,7 +130,7 @@ async function saveProduct(env, data) {
     variants.filter(item => item.active).length, "Ижил хэмжээ, өнгөтэй сонголт давхардсан байна.");
   check(!data.active || variants.some(item => item.active), "Дор хаяж нэг идэвхтэй сонголт нэмнэ үү.");
   try {
-    const writes = [statement(env, "INSERT INTO products(id,title,brand,description,category,image,front_image,active) VALUES(?,?,?,?,?,?,?,?) ON CONFLICT(id) DO UPDATE SET title=excluded.title, brand=excluded.brand, description=excluded.description, category=excluded.category, image=excluded.image, front_image=excluded.front_image, active=excluded.active",
+    const writes = [statement(env, "INSERT INTO products(id,title,brand,description,category,image,front_image,active,position) VALUES(?,?,?,?,?,?,?,?,(SELECT COALESCE(MIN(position),0)-1 FROM products)) ON CONFLICT(id) DO UPDATE SET title=excluded.title, brand=excluded.brand, description=excluded.description, category=excluded.category, image=excluded.image, front_image=excluded.front_image, active=excluded.active",
       id, title, brand, description, data.category, image, frontImage, Number(data.active))];
     for (const item of variants) {
       if (item.existing) {
@@ -150,6 +150,31 @@ async function saveProduct(env, data) {
   return { id };
 }
 
+// Sets the storefront order: ids are listed top (first on the rack) to bottom.
+async function reorder(env, data) {
+  check(["products", "looks"].includes(data.kind) && Array.isArray(data.ids) && data.ids.length >= 1 && data.ids.length <= 500);
+  check(data.ids.every(id => uuid.test(id)) && new Set(data.ids).size === data.ids.length);
+  await env.DB.batch(data.ids.map((id, index) => statement(env, "UPDATE " + data.kind + " SET position=? WHERE id=?", index, id)));
+  return { ok: true };
+}
+// A product that was ever ordered stays in the database (orders point at its variants); hide it as a draft instead.
+async function deleteProduct(env, data) {
+  check(uuid.test(data.id));
+  check(await first(env, "SELECT id FROM products WHERE id=?", data.id), "Бараа олдсонгүй.", 404);
+  const ordered = await first(env, "SELECT 1 AS hit FROM order_items i JOIN variants v ON v.id=i.variant_id WHERE v.product_id=? LIMIT 1", data.id);
+  check(!ordered, "Энэ бараа захиалгад орсон тул устгах боломжгүй. Оронд нь «Дэлгүүрт харуулах»-ыг болиулж ноорог болгоно уу.", 409);
+  const writes = [];
+  for (const look of await rows(env, "SELECT id,pins FROM looks")) {
+    const pins = JSON.parse(look.pins);
+    const kept = pins.filter(pin => pin.product !== data.id);
+    if (kept.length !== pins.length) {
+      writes.push(statement(env, "UPDATE looks SET pins=?, active=CASE WHEN ?=0 THEN 0 ELSE active END WHERE id=?", JSON.stringify(kept), kept.length, look.id));
+    }
+  }
+  writes.push(statement(env, "DELETE FROM variants WHERE product_id=?", data.id), statement(env, "DELETE FROM products WHERE id=?", data.id));
+  await env.DB.batch(writes);
+  return { ok: true };
+}
 async function saveLook(env, data) {
   const id = data.id ?? crypto.randomUUID();
   check(uuid.test(id) && typeof data.active === "boolean" && imageKey.test(data.image));
@@ -161,7 +186,7 @@ async function saveLook(env, data) {
     check(await first(env, "SELECT id FROM products WHERE id=?", pin.product), "Бараа олдсонгүй.");
     pins.push({ product: pin.product, x: pin.x, y: pin.y });
   }
-  await run(env, "INSERT INTO looks(id,title,image,pins,active) VALUES(?,?,?,?,?) ON CONFLICT(id) DO UPDATE SET title=excluded.title,image=excluded.image,pins=excluded.pins,active=excluded.active",
+  await run(env, "INSERT INTO looks(id,title,image,pins,active,position) VALUES(?,?,?,?,?,(SELECT COALESCE(MIN(position),0)-1 FROM looks)) ON CONFLICT(id) DO UPDATE SET title=excluded.title,image=excluded.image,pins=excluded.pins,active=excluded.active",
     id, title, data.image, JSON.stringify(pins), Number(data.active));
   return { id };
 }
@@ -431,6 +456,14 @@ export default {
         if (method === "POST" && path === "/api/admin/image") return json(await uploadImage(request, env), 201);
         if (method === "POST" && path === "/api/admin/product") return json(await saveProduct(env, await requestJson(request)));
         if (method === "POST" && path === "/api/admin/look") return json(await saveLook(env, await requestJson(request)));
+        if (method === "POST" && path === "/api/admin/reorder") return json(await reorder(env, await requestJson(request)));
+        if (method === "POST" && path === "/api/admin/delete-product") return json(await deleteProduct(env, await requestJson(request)));
+        if (method === "POST" && path === "/api/admin/delete-look") {
+          const data = await requestJson(request);
+          check(uuid.test(data.id));
+          check((await run(env, "DELETE FROM looks WHERE id=?", data.id)).meta.changes, "Хослол олдсонгүй.", 404);
+          return json({ ok: true });
+        }
         if (method === "POST" && path === "/api/admin/ship") {
           const data = await requestJson(request);
           check(uuid.test(data.id));

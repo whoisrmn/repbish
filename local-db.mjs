@@ -10,6 +10,9 @@ export function localDb(file = ":memory:") {
   if (!sqlite.prepare("SELECT 1 FROM sqlite_master WHERE type='table' AND name='store_owner'").get()) {
     sqlite.exec(readFileSync(new URL("./drizzle/0002_owner_and_reservations.sql", import.meta.url), "utf8"));
   }
+  if (!sqlite.prepare("SELECT 1 FROM pragma_table_info('products') WHERE name='position'").get()) {
+    sqlite.exec(readFileSync(new URL("./drizzle/0003_display_order.sql", import.meta.url), "utf8"));
+  }
   const db = {
     prepare(sql) {
       return { bind(...values) {

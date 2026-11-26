@@ -18,11 +18,12 @@ The default URL is `http://127.0.0.1:4317/`. The admin is at `/admin`. The previ
 
 - For each product, enter the source brand, product name, description, and category. Add one variant for each size and color, with an integer MNT price and stock count. Published products require a main image. For the rail, upload a transparent image with the whole hanger in view. A second front-facing photo is optional and appears on hover or keyboard focus.
 - To publish a look, upload a full-body, head-to-toe photo of the model with a transparent background (PNG or WebP, portrait). The storefront lines looks up side by side on white, so photos with a background or a landscape frame look out of place; the admin warns about both. Then select one product at a time and click the image to place the pin. Pin placement is relative to the original image. A published look displays links to its published products.
+- Products and looks show in the admin list in storefront order. Use ↑ ↓ to move one; the top item comes first on the rack and in Try the Look. New items start at the top. "Хуулбар үүсгэх" opens a draft copy with the same photos and sizes and no stock. "Устгах" permanently deletes a product (and unpins it from looks) only if it was never ordered; otherwise untick "Дэлгүүрт харуулах" to hide it.
 - The Orders tab shows customer delivery details, payment status, and the items purchased. Mark a paid order shipped and enter a tracking reference if available.
 
 ## Hosting and payments
 
-The build produces the Worker at `dist/server/index.js`. The hosting manifest declares the `DB` and `BUCKET` bindings. Both migrations in `drizzle/` must be applied in order.
+The build produces the Worker at `dist/server/index.js`. The hosting manifest declares the `DB` and `BUCKET` bindings. All three migrations in `drizzle/` (0001–0003) must be applied in order. 0003 adds the display order for products and looks; apply it to the hosted D1 database before deploying this version.
 
 The hosted owner claims the admin by opening `/admin` while the Site is confirmed owner-private and `OWNER_PRIVATE_SETUP=true`. The stable Site user ID is stored in D1. Disable `OWNER_PRIVATE_SETUP` before switching to public access. For deployments with a trusted identity gateway, `ADMIN_EMAIL` can instead allow exactly one gateway-verified account.
 

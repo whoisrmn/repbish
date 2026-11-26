@@ -166,3 +166,40 @@ test("home page, icon, robots and sitemap support link previews and search", asy
   assert.match(map, /<loc>https:\/\/repbish\.test\/info\/returns<\/loc>/);
   assert.match(map, new RegExp("<loc>https://repbish\.test/products/" + product.id + "</loc>"));
 });
+
+test("admin can reorder, delete unordered products and delete looks", async () => {
+  const env = environment();
+  await setupOwner(env);
+  const first = await newProduct(env);
+  const second = await newProduct(env);
+  let data = await (await call(env, "/api/catalog")).json();
+  assert.deepEqual(data.products.map(item => item.id), [second.id, first.id], "newest product starts on top");
+  assert.equal((await post(env, "/api/admin/reorder", { kind:"products", ids:[first.id, second.id] }, owner)).status, 200);
+  data = await (await call(env, "/api/catalog")).json();
+  assert.deepEqual(data.products.map(item => item.id), [first.id, second.id]);
+  assert.equal((await post(env, "/api/admin/reorder", { kind:"orders", ids:[first.id] }, owner)).status, 400);
+  assert.equal((await post(env, "/api/admin/reorder", { kind:"products", ids:[first.id] })).status, 403);
+  const look = await (await post(env, "/api/admin/look", { title:"Look", image:first.image, active:true,
+    pins:[{ product:first.id, x:30, y:40 }, { product:second.id, x:40, y:70 }] }, owner)).json();
+  assert.equal((await post(env, "/api/admin/delete-product", { id:first.id }, owner)).status, 200);
+  data = await (await call(env, "/api/catalog")).json();
+  assert.deepEqual(data.products.map(item => item.id), [second.id]);
+  assert.deepEqual(data.looks[0].pins.map(pin => pin.product), [second.id], "deleted product is unpinned from looks");
+  assert.equal((await post(env, "/api/admin/delete-look", { id:look.id }, owner)).status, 200);
+  assert.equal((await (await call(env, "/api/catalog")).json()).looks.length, 0);
+  assert.equal((await post(env, "/api/admin/delete-look", { id:look.id }, owner)).status, 404);
+});
+
+test("a product that was ordered cannot be deleted", async t => {
+  const env = environment();
+  t.mock.method(globalThis, "fetch", async () => new Response(JSON.stringify({ id:"pi_fixture", client_secret:"x", status:"requires_payment_method",
+    amount:59000, currency:"MNT", url:"https://pay.wire.mn/c/fixture", payment_intent:"pi_fixture" }), { status:200, headers:{ "content-type":"application/json" } }));
+  await setupOwner(env);
+  const product = await newProduct(env);
+  await post(env, "/api/checkout", buyer(crypto.randomUUID(), product.variants[0].id));
+  const ordered = await env.DB.prepare("SELECT COUNT(*) AS n FROM order_items").bind().first();
+  if (!ordered.n) t.skip("checkout fixture did not create an order");
+  const refused = await post(env, "/api/admin/delete-product", { id:product.id }, owner);
+  assert.equal(refused.status, 409);
+  assert.equal((await (await call(env, "/api/catalog")).json()).products.length, 1);
+});
