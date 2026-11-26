@@ -21,6 +21,25 @@ h1,h2,h3{font-weight:500;letter-spacing:-.01em}
 .bag-button span{margin-left:2px}
 .bag-button span::before{content:"("}
 .bag-button span::after{content:")"}
+/* menu button (phones only): two thin lines */
+.menu-button{display:none;border:0;background:none;width:40px;height:40px;padding:0;margin-left:-8px;place-items:center}
+.menu-button span[aria-hidden]{display:block;width:20px;height:7px;border-block:1.5px solid currentColor}
+.menu-drawer{margin:0 auto 0 0;width:min(360px,88vw);display:none;flex-direction:column}
+.menu-drawer[open]{display:flex}
+.menu-drawer .wordmark{font-size:20px}
+.menu-content{padding:8px 24px 24px;display:grid;gap:4px;align-content:start;overflow-y:auto}
+.menu-content ul{list-style:none;margin:0;padding:0}
+.menu-label{font-size:11px;letter-spacing:.16em;text-transform:uppercase;color:var(--muted);margin:22px 0 6px}
+.menu-main a{display:block;padding:9px 0;font-size:22px;letter-spacing:-.01em}
+.menu-info a{display:block;padding:7px 0;font-size:15px;color:#444}
+.menu-content a:hover{opacity:.6}
+.menu-foot{margin-top:auto;padding:18px 24px;border-top:1px solid var(--line);font-size:12px;color:var(--muted)}
+@media(prefers-reduced-motion:no-preference){
+  .menu-drawer[open]{animation:slide-in .28s cubic-bezier(.2,.7,.2,1)}
+  .menu-drawer[open]::backdrop{animation:fade-in .28s ease}
+}
+@keyframes slide-in{from{transform:translateX(-100%)}}
+@keyframes fade-in{from{opacity:0}}
 .quiet-link{display:inline-block;font-size:13px;border-bottom:1px solid currentColor;padding-bottom:1px;white-space:nowrap}
 .quiet-link:hover{opacity:.6}
 
@@ -314,7 +333,8 @@ textarea{resize:vertical;min-height:72px}
 
 @media(max-width:720px){
   .railcap{font-size:10px;letter-spacing:.12em;gap:10px;padding-inline:var(--gutter)}
-  .site-header{height:54px;gap:8px}.site-header nav{font-size:12px;gap:14px}.site-header nav a:first-child{display:none}
+  .site-header{height:54px;gap:8px;grid-template-columns:1fr auto 1fr}.site-header nav{display:none}
+  .menu-button{display:grid}.menu-button + .wordmark{justify-self:center}
   .collection{min-height:calc(100svh - 54px);--col:clamp(140px,min(calc((100svh - 300px) * .62),calc((100vw - 2 * var(--gutter)) / 1.6)),280px)}
   .rail{scroll-snap-type:x mandatory}
   .admin-columns{grid-template-columns:1fr}

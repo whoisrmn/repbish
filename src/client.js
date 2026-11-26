@@ -384,13 +384,42 @@ function openBag() {
   updateBag();
   bagDialog.showModal();
 }
+function applyFilter(category) {
+  if (![...$("#filters").children].some(button => button.dataset.category === category)) category = "all";
+  for (const button of $("#filters").children) button.setAttribute("aria-pressed", String(button.dataset.category === category));
+  for (const item of rail.children) item.hidden = category !== "all" && category !== item.dataset.category;
+  rail.scrollLeft = 0;
+}
 $("#filters").addEventListener("click", event => {
   const filter = event.target.closest("button[data-category]");
-  if (!filter) return;
-  for (const button of $("#filters").children) button.setAttribute("aria-pressed", String(button === filter));
-  for (const item of rail.children) item.hidden = filter.dataset.category !== "all" && filter.dataset.category !== item.dataset.category;
-  rail.scrollLeft = 0;
+  if (filter) applyFilter(filter.dataset.category);
 });
+// "/#category-tops" opens the rack filtered to that category (used by the menu)
+function followCategoryHash() {
+  const match = location.hash.match(/^#category-([a-z]+)$/);
+  if (!match || $("#collection").hidden) return;
+  applyFilter(match[1]);
+  $("#collection").scrollIntoView();
+}
+addEventListener("hashchange", followCategoryHash);
+
+// ---------- mobile menu ----------
+const menuDialog = $("#menu-dialog");
+$("#menu-button").addEventListener("click", () => {
+  menuDialog.showModal();
+  $("#menu-button").setAttribute("aria-expanded", "true");
+});
+menuDialog.addEventListener("close", () => $("#menu-button").setAttribute("aria-expanded", "false"));
+// links to a spot on this same page don't reload it, so close the menu ourselves
+menuDialog.addEventListener("click", event => {
+  if (event.target.closest("a")) menuDialog.close();
+  else if (event.target === menuDialog) menuDialog.close();
+});
+function showMenuCategories() {
+  const present = Object.entries(labels).filter(([key]) => key !== "all" && products.some(product => product.category === key));
+  $("#menu-shop").innerHTML = '<li><a href="/#category-all">Бүх бараа</a></li>' +
+    present.map(([key, label]) => '<li><a href="/#category-' + key + '">' + label + '</a></li>').join("");
+}
 let dragged = false;
 for (const container of [rail, stage, panel]) {
   container.addEventListener("click", event => {
@@ -583,11 +612,13 @@ async function initialize() {
     const ids = new Set(data.products.flatMap(product => product.variants.map(variant => variant.id)));
     for (const id of cart.keys()) if (!ids.has(id)) cart.delete(id);
     saveCart();
+    showMenuCategories();
     if (!$("#info-page").hidden) return;
     const productRoute = location.pathname.match(/^\/products\/([a-z0-9-]{1,64})$/);
     if (productRoute) { showProductPage(productRoute[1]); return; }
     showRail();
     renderLooks();
+    followCategoryHash();
     // product pages link to "/#look-N" to open that look directly
     const lookHash = location.hash.match(/^#look-(\d+)$/);
     if (lookHash && looks[Number(lookHash[1])]) {
