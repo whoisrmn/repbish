@@ -99,7 +99,8 @@ function garment(product, index, labelled = false) {
     '" data-category="' + esc(product.category) + '" aria-label="' + esc(product.title + " · " + tag) +
     '"><span class="garment-photo"><img class="garment-regular" alt="" decoding="async"' + (index >= 8 ? ' loading="lazy"' : '') + ' src="' + src +
     '"><span class="tag' + (available ? '' : ' sold') + '">' + tag + '</span></span>' +
-    (labelled ? '<span class="garment-label">' + esc(product.title) + '</span><span class="garment-brand">' + esc(product.brand) + '</span>' : '') + '</button>';
+    (labelled ? '<span class="garment-label">' + esc(product.title) + '</span><span class="garment-brand">' + esc(product.brand) + '</span>' :
+      '<span class="garment-cta" aria-hidden="true"><span>' + esc(product.title) + '</span>Дахин дарж үзэх →</span>') + '</button>';
 }
 function showRail() {
   if (products.length >= 5) {
@@ -114,6 +115,7 @@ function showRail() {
   rail.innerHTML = hanging.map((product, index) => garment(product, index)).join("");
   bindFronts(rail);
   hangAll(rail);
+  curveSoon();
 }
 // ---------- hanging photos on the rod ----------
 // Product photos often have empty space above the hook, which would leave the garment floating under the rod.
@@ -146,6 +148,31 @@ function hang(img) {
   const scale = Math.min(img.clientWidth / img.naturalWidth, img.clientHeight / img.naturalHeight);
   img.style.setProperty("--lift", Math.max(0, hookTop(img) * img.naturalHeight * scale - rodGrip) + "px");
 }
+// ---------- curved rod ----------
+// The rod sags gently (lowest in the middle). It is drawn as an SVG across the rack, and each garment is
+// moved down by the sag at its position so its hook still sits on the rod. Recomputed on resize and scroll.
+const rodCentre = 22.5; // px from the top of the rack to the middle of the tube (matches the hook grip)
+function sagAt(x, width, sag) { const t = 2 * x / width - 1; return sag * (1 - t * t); }
+function curveRack() {
+  const rack = rail.parentElement, svg = $("#rod");
+  if (!svg || rack.closest("[hidden]")) return;
+  const width = rack.clientWidth;
+  const sag = Math.max(10, Math.min(28, width * .022));
+  svg.setAttribute("viewBox", "0 0 " + width + " " + (rodCentre * 2 + sag * 2));
+  svg.style.height = (rodCentre * 2 + sag * 2) + "px";
+  const path = "M0 " + rodCentre + " Q" + width / 2 + " " + (rodCentre + 2 * sag) + " " + width + " " + rodCentre;
+  for (const part of svg.querySelectorAll("path")) part.setAttribute("d", path);
+  for (const card of rail.children) {
+    if (card.hidden) continue;
+    card.style.setProperty("--sag", sagAt(card.offsetLeft + card.offsetWidth / 2 - rail.scrollLeft, width, sag) + "px");
+  }
+  rail.style.setProperty("--sag-max", sag + "px");
+}
+let curveFrame;
+const curveSoon = () => { cancelAnimationFrame(curveFrame); curveFrame = requestAnimationFrame(curveRack); };
+rail.addEventListener("scroll", curveSoon, { passive:true });
+addEventListener("resize", curveSoon);
+
 function hangAll(container) {
   for (const img of container.querySelectorAll(".garment-photo img")) {
     if (img.complete) hang(img);
@@ -514,6 +541,8 @@ function applyFilter(category) {
   for (const button of $("#filters").children) button.setAttribute("aria-pressed", String(button.dataset.category === category));
   for (const item of rail.children) item.hidden = category !== "all" && category !== item.dataset.category;
   rail.scrollLeft = 0;
+  clearSelection();
+  curveSoon();
 }
 $("#filters").addEventListener("click", event => {
   const filter = event.target.closest("button[data-category]");
@@ -549,6 +578,24 @@ function showMenuCategories() {
   $("#menu-shop").innerHTML = '<li><a href="products">Бүх бараа</a></li>' +
     present.map(([key, label]) => '<li><a href="products?category=' + key + '">' + label + '</a></li>').join("");
 }
+// ---------- rack on touch screens ----------
+// There is no hover on a phone, so the first tap on a piece "hovers" it (turns it to the front, blurs the rest)
+// and a second tap on the same piece opens its product page. Tapping anywhere else clears the selection.
+let lastPointer = "mouse";
+rail.addEventListener("pointerdown", event => { lastPointer = event.pointerType; }, { passive:true });
+const touchLike = () => lastPointer === "touch" || matchMedia("(hover: none)").matches;
+function clearSelection() { for (const card of rail.querySelectorAll(".garment.selected")) card.classList.remove("selected"); }
+rail.addEventListener("click", event => {
+  const card = event.target.closest(".garment");
+  if (!card || !touchLike()) return;
+  event.stopImmediatePropagation();
+  if (card.classList.contains("selected")) { location.assign(absolute("products/" + encodeURIComponent(card.dataset.product))); return; }
+  clearSelection();
+  card.classList.add("selected");
+  card.dispatchEvent(new Event("focus")); // loads the front photo
+}, true);
+document.addEventListener("click", event => { if (!event.target.closest("#rail")) clearSelection(); });
+
 let dragged = false;
 for (const container of [rail, stage, panel]) {
   container.addEventListener("click", event => {

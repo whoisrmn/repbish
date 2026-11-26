@@ -527,3 +527,26 @@ h1,.section-head h2,.shop-head h1,.info-body h1{letter-spacing:-.025em}
 .look-figure.photo::after{display:none}
 .look-figure.photo .hotspot{box-shadow:0 1px 6px rgb(0 0 0/.3)}
 .look-stage{overflow:hidden}
+
+/* ---------- curved rod (drawn by client.js) ---------- */
+.collection .rack::before{display:none}
+.rod{position:absolute;left:0;top:0;width:100%;z-index:-1;overflow:visible;pointer-events:none}
+.rod path{fill:none;stroke-linecap:round}
+.rod-shadow{stroke:#000;stroke-opacity:.12;stroke-width:5;transform:translateY(2.5px)}
+.rod-tube{stroke:#b9b9b9;stroke-width:5}
+.rod-shine{stroke:#f6f6f6;stroke-width:1.4;transform:translateY(-1px)}
+.collection .garment{top:var(--sag,0px)}
+.collection .rail{padding-bottom:calc(6px + var(--sag-max, 0px))}
+
+/* ---------- rack: tapped piece on touch screens behaves like the hovered one ---------- */
+.collection .garment.selected{z-index:3}
+.collection .garment.turn.selected .garment-regular{transform:perspective(900px) rotateY(0)}
+.collection .garment.selected ~ .garment{translate:var(--push) 0}
+.collection .garment:has(~ .garment.selected){translate:calc(var(--push) * -1) 0}
+.garment.selected .front-ready .garment-front{opacity:1}
+.garment.selected .front-ready .garment-regular{opacity:0}
+.collection .rail:has(.garment.selected) .garment:not(.selected) .garment-photo{opacity:.4;filter:blur(2.5px) saturate(.6)}
+.garment-cta{display:none}
+.collection .garment.selected .garment-cta{display:grid;justify-items:center;gap:2px;margin-top:12px;white-space:nowrap;font-size:10px;letter-spacing:.14em;text-transform:uppercase;color:#6b6b6b;animation:rise .5s var(--ease) both}
+.garment-cta span{font-size:12px;letter-spacing:.02em;text-transform:none;color:var(--ink)}
+@media(prefers-reduced-motion:reduce){.collection .rail .garment.selected ~ .garment,.collection .garment:has(~ .garment.selected){translate:none}}
